@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
       return json({ error: "Invalid conversation." }, 400);
     }
 
-    const model = context.env.OPENAI_MODEL || "gpt-4o-mini";
+    const model = context.env.OPENAI_MODEL || "gpt-5.6-luna";
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
