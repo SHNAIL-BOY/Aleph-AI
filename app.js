@@ -41,7 +41,7 @@ function load() {
 }
 async function health() {
     try {
-        let r = await fetch("functions/API/health.js");
+        let r = await fetch("./health.js");
         let d = await r.json();
         status.classList.add("ok");
         status.innerHTML = "<i></i> Online";
@@ -62,7 +62,7 @@ async function chat(text) {
     const t = add("assistant", "Thinking…", false);
     t.querySelector(".bubble").classList.add("typing");
     try {
-        const r = await fetch("functions/API/chat.js", {
+        const r = await fetch("./chat.js", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
