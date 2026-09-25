@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="Shnail AI — a real AI chatbot.">
+  <title>Shnail AI</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="logo">✦</div><div><b>Shnail AI</b><small>AI assistant</small></div></div>
+    <button class="new-chat" id="newChat">＋ New chat</button>
+    <div class="about"><b>Shnail AI</b><p>A real AI chatbot powered by the OpenAI API.</p></div>
+    <div class="bottom">
+      <button class="secondary" id="clear">Clear conversation</button>
+      <div class="status" id="status"><i></i> Connecting…</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu" id="menu">☰</button>
+      <div><b>Shnail AI</b><small id="model">AI assistant</small></div>
+    </header>
+
+    <section class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="big-logo">✦</div>
+        <h1>What can I help with?</h1>
+        <p>Ask anything, build something, learn, brainstorm, or just chat.</p>
+        <div class="suggestions">
+          <button>Explain quantum computing simply</button>
+          <button>Make me a JavaScript game</button>
+          <button>Give me 5 creative project ideas</button>
+          <button>Teach me something interesting</button>
+        </div>
+      </div>
+    </section>
+
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" maxlength="12000" placeholder="Message Shnail AI…" enterkeyhint="send"></textarea>
+      <button id="send" type="submit">➤</button>
+    </form>
+    <div class="hint">Enter to send · Shift+Enter for a new line</div>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
