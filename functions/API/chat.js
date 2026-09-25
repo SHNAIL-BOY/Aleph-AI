@@ -17,20 +17,28 @@ export async function onRequestPost(context) {
       return json({ error: "Invalid conversation." }, 400);
     }
 
-    const model = context.env.OPENAI_MODEL || "gpt-5.6-luna";
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${context.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        instructions: "You are Shnail AI, a helpful, friendly AI assistant. Give clear and accurate answers. Use Markdown when useful. If uncertain, say so rather than inventing facts.",
-        input: clean
-      })
-    });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${context.env.OPENAI_API_KEY}`
+  },
+  body: JSON.stringify({
+    model: context.env.OPENAI_MODEL || "gpt-5.6-luna", 
+    messages: [
+      { role: "system", content: "You are Aleph AI, a helpful, friendly AI assistant." },
+      ...clean
+    ]
+  })
+});
 
+const data = await response.json();
+if (!response.ok) {
+  return json({ error: data.error?.message || "Request failed" }, response.status);
+}
+
+return json({ text: data.choices[0].message.content, model: data.model, id: data.id });
+    
     const data = await response.json();
     if (!response.ok) {
       console.error("OpenAI error:", JSON.stringify(data));
