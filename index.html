@@ -1,52 +1,762 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#080b12">
-  <meta name="description" content="Aleph AI — a AI by the creator of Shnail-platformer.">
-  <title>Aleph AI</title>
-  <link rel="stylesheet" href="./style.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Aleph AI — a AI by the creator of Shnail-platformer.">
+    <title>Aleph AI</title>
+    <style>
+        :root {
+            --bg: #0b0f18;
+            --panel: #111725;
+            --panel2: #161d2b;
+            --border: #273044;
+            --border2: #354058;
+            --text: #f5f7fb;
+            --muted: #98a3b6;
+            --dim: #657086;
+            --accent: #7c5cff;
+            --accent2: #a998ff;
+            --green: #22c55e;
+            --amber: #f59e0b;
+            --red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        aside {
+            width: 270px;
+            flex: none;
+            background: #0b0f18;
+            border-right: 1px solid var(--border);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+        .logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #59d45d, #5cff92);
+            color: #08210d;
+            font-weight: 700;
+        }
+
+        .brand b {
+            font-size: 15px;
+        }
+
+        .brand small {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border2);
+            background: var(--panel2);
+            color: #fff;
+            border-radius: 11px;
+            padding: 11px 13px;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #20283a;
+        }
+
+        .side-note {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .side-note b {
+            color: #e2e7f1;
+        }
+
+        .side-foot {
+            margin-top: auto;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--amber);
+            flex: none;
+        }
+
+        .dot.ok {
+            background: var(--green);
+        }
+
+        .dot.warn {
+            background: var(--amber);
+        }
+
+        .dot.off {
+            background: var(--red);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .menu-btn {
+            display: none;
+            background: var(--panel2);
+            border: 1px solid var(--border2);
+            color: #fff;
+            border-radius: 9px;
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .model-pill {
+            margin-left: auto;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 9px;
+            padding: 7px 11px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 16px;
+        }
+
+        .msg {
+            max-width: 780px;
+            margin: 0 auto 24px;
+            display: flex;
+            gap: 11px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            flex: none;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            background: #1b2332;
+        }
+
+        .avatar.user {
+            background: #3a2d83;
+        }
+
+        .bubble {
+            flex: 1;
+            min-width: 0;
+            font-size: 14px;
+            line-height: 1.65;
+            word-break: break-word;
+        }
+
+        .bubble.user {
+            background: #171d2b;
+            border: 1px solid var(--border);
+            padding: 11px 13px;
+            border-radius: 13px;
+        }
+
+        pre {
+            background: #0b0f17;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 10px;
+            overflow: auto;
+            margin: 8px 0;
+        }
+
+        code {
+            background: #1a2130;
+            padding: 1px 5px;
+            border-radius: 5px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .92em;
+        }
+
+        pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        a {
+            color: var(--accent2);
+        }
+
+        .welcome {
+            max-width: 700px;
+            margin: 9vh auto 0;
+            text-align: center;
+        }
+
+        .welcome .logo {
+            width: 54px;
+            height: 54px;
+            border-radius: 15px;
+            margin: 0 auto;
+            font-size: 28px;
+        }
+
+        .welcome h1 {
+            font-size: 30px;
+            letter-spacing: -.7px;
+            margin: 18px 0 8px;
+        }
+
+        .welcome p {
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+
+        .sugg {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .sugg button {
+            border: 1px solid var(--border);
+            background: var(--panel);
+            color: #dbe1ed;
+            padding: 13px;
+            border-radius: 12px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .sugg button:hover {
+            background: #171f30;
+        }
+
+        .composer {
+            padding: 13px;
+        }
+
+        .composer form {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 8px;
+        }
+
+        .composer textarea {
+            flex: 1;
+            resize: none;
+            border: 0;
+            background: transparent;
+            color: var(--text);
+            padding: 9px;
+            outline: none;
+            max-height: 180px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .composer textarea::placeholder {
+            color: #748096;
+        }
+
+        .composer button {
+            width: 40px;
+            height: 40px;
+            flex: none;
+            border: 0;
+            border-radius: 11px;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+        }
+
+        .composer button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .hint {
+            text-align: center;
+            color: var(--dim);
+            font-size: 10px;
+            padding-top: 8px;
+        }
+
+        .modal-bg {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .6);
+            display: none;
+            place-items: center;
+            z-index: 50;
+        }
+
+        .modal-bg.open {
+            display: grid;
+        }
+
+        .modal {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
+            width: min(440px, 92vw);
+        }
+
+        .modal h2 {
+            font-size: 17px;
+            margin-bottom: 6px;
+        }
+
+        .modal p {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        .modal label {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .modal input,
+        .modal select {
+            width: 100%;
+            background: #0b0f17;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 14px;
+        }
+
+        .modal .row {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .modal .row .btn {
+            width: auto;
+        }
+
+        .typing {
+            color: var(--muted);
+        }
+
+        .err {
+            color: #ffb4b4;
+        }
+
+        @media (max-width:768px) {
+            aside {
+                position: fixed;
+                z-index: 30;
+                top: 0;
+                bottom: 0;
+                transform: translateX(-290px);
+                transition: transform .2s;
+            }
+
+            aside.open {
+                transform: translateX(0);
+            }
+
+            .menu-btn {
+                display: block;
+            }
+
+            .sugg {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<div class="app">
-  <aside class="sidebar" id="sidebar">
-    <div class="brand"><div class="logo">ℵ₀</div><div><b>Aleph AI</b><small>AI assistant</small></div></div>
-    <button class="new-chat" id="newChat">＋ New chat</button>
-    <div class="about"><b>Aleph AI</b><p>An AI made by the creator of Shnail-platformer.</p></div>
-    <div class="bottom">
-      <button class="secondary" id="clear">Clear conversation</button>
-      <div class="status" id="status"><i></i> Connecting…</div>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="brand">
+                <div class="logo">ℵ₀</div>
+                <div><b>Aleph AI</b><small>AI assistant</small></div>
+            </div>
+            <button class="btn" id="newChat">＋ New chat</button>
+            <div class="side-note"><b>Aleph AI</b>
+                <p style="margin-top:7px">An AI made by the creator of Shnail-platformer.</p>
+            </div>
+            <div class="side-foot">
+                <button class="btn" id="clearBtn">🗑 Clear conversation</button>
+                <div class="status" style="margin-top:12px"><span class="dot" id="dot"></span> <span id="statusText">Connecting…</span></div>
+                <button class="btn" id="settingsBtn" style="margin-top:10px">⚙ Settings</button>
+            </div>
+        </aside>
+        <main>
+            <header>
+                <button class="menu-btn" id="menuBtn">☰</button>
+                <div class="logo" style="width:30px;height:30px;border-radius:9px;font-size:14px">ℵ₀</div>
+                <b>Aleph AI</b>
+                <span class="model-pill" id="modelPill">gpt-4o-mini ▾</span>
+            </header>
+            <div id="messages"></div>
+            <div class="composer">
+                <form id="form">
+                    <textarea id="input" rows="1" maxlength="12000" placeholder="Message Aleph AI…"></textarea>
+                    <button type="submit" id="send">↑</button>
+                </form>
+                <div class="hint">Enter to send · Shift+Enter for a new line</div>
+            </div>
+        </main>
     </div>
-  </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <button class="menu" id="menu">☰</button>
-      <div><b>Aleph AI</b><small id="model">AI assistant</small></div>
-    </header>
-
-    <section class="messages" id="messages">
-      <div class="welcome" id="welcome">
-        <div class="big-logo">ℵ₀</div>
-        <h1>What can I help with?</h1>
-        <p>Ask anything, build something, learn, brainstorm, or just chat.</p>
-        <div class="suggestions">
-          <button>Explain quantum computing simply</button>
-          <button>Teach me how to program</button>
-          <button>Give me 5 creative project ideas</button>
-          <button>Teach me something interesting</button>
+    <div class="modal-bg" id="settingsModal">
+        <div class="modal">
+            <h2>Settings</h2>
+            <p>This page connects to its default server automatically. You only need this if you want to point it somewhere else.</p>
+            <label for="serverUrl">Server URL</label>
+            <input id="serverUrl" type="text" placeholder="https://aleph-ai-server.onrender.com" />
+            <label for="modelSel">Model</label>
+            <select id="modelSel">
+                <option value="gpt-4o-mini">gpt-4o-mini (fast, cheap)</option>
+                <option value="gpt-4o">gpt-4o (smarter)</option>
+                <option value="gpt-4-turbo">gpt-4-turbo</option>
+                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+            </select>
+            <div class="row">
+                <button class="btn" id="resetSettings">Reset to default</button>
+                <button class="btn" id="cancelSettings">Cancel</button>
+                <button class="btn" id="saveSettings" style="background:var(--accent);border-color:var(--accent)">Save</button>
+            </div>
         </div>
-      </div>
-    </section>
+    </div>
 
-    <form class="composer" id="composer">
-      <textarea id="input" rows="1" maxlength="12000" placeholder="Message Alpeh AI…" enterkeyhint="send"></textarea>
-      <button id="send" type="submit">➤</button>
-    </form>
-    <div class="hint">Enter to send · Shift+Enter for a new line</div>
-  </main>
-</div>
-<script src="./app.js"></script>
+    <script>
+        const HISTORY_KEY = 'aleph-history';
+        const URL_KEY = 'aleph-server-url';
+        const MODEL_KEY = 'aleph-model';
+        const BT = String.fromCharCode(96);
+
+        /* Your deployed Aleph server. The page connects to this automatically —
+           no URL needed. Settings can still override it per-browser. */
+        const DEFAULT_URL = 'https://aleph-ai-server.onrender.com';
+
+        let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        let model = localStorage.getItem(MODEL_KEY) || 'gpt-4o-mini';
+        let serverUrl = localStorage.getItem(URL_KEY) || DEFAULT_URL;
+        let typing = false;
+
+        const $ = id => document.getElementById(id);
+        const messagesEl = $('messages');
+        const inputEl = $('input');
+        const formEl = $('form');
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            } [c]));
+        }
+
+        function renderMarkdown(md) {
+            // Park fenced code blocks first so later passes can't corrupt them.
+            const blocks = [];
+            let html = escapeHtml(md);
+            const fence = new RegExp(BT + BT + BT + '([a-zA-Z0-9+#.-]*)\\n?([\\s\\S]*?)' + BT + BT + BT, 'g');
+            html = html.replace(fence, (m, lang, c) => {
+                const cls = lang ? ' class="language-' + lang + '"' : '';
+                const idx = blocks.push('<pre><code' + cls + '>' + c + '</code></pre>') - 1;
+                return '\u0000' + idx + '\u0000';
+            });
+            const inline = new RegExp(BT + '([^\\n]+?)' + BT, 'g');
+            html = html.replace(inline, '<code>$1</code>');
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+            html = html.replace(/\n/g, '<br>');
+            html = html.replace(/\u0000(\d+)\u0000/g, (m, i) => blocks[i] || '');
+            return html;
+        }
+
+        function render() {
+            messagesEl.innerHTML = '';
+            if (history.length === 0) {
+                const w = document.createElement('div');
+                w.className = 'welcome';
+                w.innerHTML = '<div class="logo">ℵ₀</div><h1>What can I help with?</h1><p>Ask anything, build something, learn, brainstorm, or just chat.</p><div class="sugg"><button>Explain quantum computing simply</button><button>Teach me how to program</button><button>Give me 5 creative project ideas</button><button>Teach me something interesting</button></div>';
+                messagesEl.appendChild(w);
+                w.querySelectorAll('.sugg button').forEach(b => b.onclick = () => {
+                    inputEl.value = b.textContent;
+                    send();
+                });
+                return;
+            }
+            history.forEach(m => {
+                const row = document.createElement('div');
+                row.className = 'msg';
+                const av = document.createElement('div');
+                av.className = 'avatar' + (m.role === 'user' ? ' user' : '');
+                av.textContent = m.role === 'user' ? 'You' : 'ℵ₀';
+                const bub = document.createElement('div');
+                bub.className = 'bubble' + (m.role === 'user' ? ' user' : '') + (m.role === 'error' ? ' err' : '');
+                if (m.role === 'user') bub.textContent = m.content;
+                else bub.innerHTML = renderMarkdown(m.content);
+                row.appendChild(av);
+                row.appendChild(bub);
+                messagesEl.appendChild(row);
+            });
+            if (typing) {
+                const row = document.createElement('div');
+                row.className = 'msg';
+                row.innerHTML = '<div class="avatar">ℵ₀</div><div class="bubble typing">Thinking…</div>';
+                messagesEl.appendChild(row);
+            }
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        /* ---------------------- connection handling ---------------------- */
+
+        function baseUrl() {
+            return (serverUrl || DEFAULT_URL).replace(/\/+$/, '');
+        }
+
+        function hostOf(url) {
+            try {
+                return new URL(url).host;
+            } catch (e) {
+                return url;
+            }
+        }
+
+        function setStatus(kind, text) {
+            $('dot').className = 'dot' + (kind ? ' ' + kind : '');
+            $('statusText').textContent = text;
+            if (kind === null) $('dot').className = 'dot';
+            if (!kind) $('dot').className = 'dot';
+        }
+
+        async function ping() {
+            try {
+                const r = await fetch(baseUrl() + '/api/health', { cache: 'no-store' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return await r.json();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Auto-connects on load and waits out Render's free-tier cold start.
+        async function autoConnect() {
+            setStatus('warn', 'Connecting…');
+            for (let i = 0; i < 12; i++) {
+                const d = await ping();
+                if (d) {
+                    if (d.hasKey) setStatus('ok', 'Online · ' + hostOf(baseUrl()));
+                    else setStatus('warn', 'Connected, but server has no API key');
+                    if (d.model && !localStorage.getItem(MODEL_KEY)) {
+                        model = d.model;
+                        updateModelUI();
+                    }
+                    return;
+                }
+                await new Promise(r => setTimeout(r, 2500));
+            }
+            setStatus('off', 'Offline — check Settings');
+        }
+
+        async function callServer(payload) {
+            const res = await fetch(baseUrl() + '/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error?.message || 'Request failed');
+            return data;
+        }
+
+        async function send() {
+            const text = inputEl.value.trim();
+            if (!text || typing) return;
+
+            history.push({ role: 'user', content: text });
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            typing = true;
+            render();
+
+            const payload = {
+                model,
+                messages: history.map(m => ({
+                    role: m.role === 'error' ? 'assistant' : m.role,
+                    content: m.content
+                }))
+            };
+
+            try {
+                let data;
+                try {
+                    data = await callServer(payload);
+                } catch (firstErr) {
+                    // One retry covers a sleeping Render instance / flaky network.
+                    setStatus('warn', 'Reconnecting…');
+                    await new Promise(r => setTimeout(r, 2000));
+                    data = await callServer(payload);
+                }
+                const reply = data.choices?.[0]?.message?.content || '(no response)';
+                history.push({ role: 'assistant', content: reply });
+                setStatus('ok', 'Online · ' + hostOf(baseUrl()));
+            } catch (e) {
+                history.push({ role: 'error', content: 'Error: ' + e.message });
+                setStatus('off', 'Connection failed');
+            }
+
+            typing = false;
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            render();
+        }
+
+        /* --------------------------- UI events --------------------------- */
+
+        formEl.addEventListener('submit', e => {
+            e.preventDefault();
+            send();
+        });
+        inputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
+        });
+        inputEl.addEventListener('input', () => {
+            inputEl.style.height = 'auto';
+            inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+        });
+
+        $('newChat').onclick = () => {
+            history = [];
+            localStorage.removeItem(HISTORY_KEY);
+            render();
+        };
+        $('clearBtn').onclick = () => {
+            history = [];
+            localStorage.removeItem(HISTORY_KEY);
+            render();
+        };
+        $('menuBtn').onclick = () => $('sidebar').classList.toggle('open');
+
+        function updateModelUI() {
+            $('modelLabel') && ($('modelLabel').textContent = model);
+            $('modelPill').textContent = model + ' ▾';
+        }
+
+        function openSettings() {
+            $('serverUrl').value = serverUrl;
+            $('modelSel').value = model;
+            $('settingsModal').classList.add('open');
+        }
+        $('settingsBtn').onclick = openSettings;
+        $('modelPill').onclick = openSettings;
+        $('cancelSettings').onclick = () => $('settingsModal').classList.remove('open');
+        $('resetSettings').onclick = () => {
+            localStorage.removeItem(URL_KEY);
+            serverUrl = DEFAULT_URL;
+            $('serverUrl').value = DEFAULT_URL;
+            autoConnect();
+        };
+        $('saveSettings').onclick = () => {
+            const entered = $('serverUrl').value.trim();
+            serverUrl = entered || DEFAULT_URL;
+            if (entered) localStorage.setItem(URL_KEY, serverUrl);
+            else localStorage.removeItem(URL_KEY);
+            model = $('modelSel').value;
+            localStorage.setItem(MODEL_KEY, model);
+            updateModelUI();
+            $('settingsModal').classList.remove('open');
+            autoConnect();
+        };
+        $('settingsModal').addEventListener('click', e => {
+            if (e.target.id === 'settingsModal') $('settingsModal').classList.remove('open');
+        });
+
+        updateModelUI();
+        render();
+        autoConnect();
+    </script>
 </body>
+
 </html>
