@@ -947,9 +947,9 @@
         let vRecording = false;
         let vRecorder = null;
         let vChunks = [];
-        let micReady = false;       // getUserMedia actually succeeded
-        let micError = null;        // last permission/device error
-        let vUseRecorder = !canSR;  // record+transcribe instead of live SR
+        let micPermState = 'unknown';  // granted | denied | prompt | unknown
+        let micError = null;           // last recorder permission/device error
+        let vUseRecorder = !canSR;     // record+transcribe instead of live SR
 
         // Turn markdown into something pleasant to listen to.
         function speakable(md) {
@@ -1030,23 +1030,41 @@
             return 'Microphone unavailable' + (name ? ' (' + name + ')' : '') + '.';
         }
 
-        // Ask for the mic up front so we can tell a real permission denial
-        // apart from a speech-service failure (iframe / insecure frame).
-        async function prepareMic() {
-            if (micReady) return true;
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                micError = new Error('getUserMedia unsupported');
-                return false;
-            }
+        // Non-intrusive permission check. Deliberately does NOT call
+        // getUserMedia: grabbing and releasing the mic before speech
+        // recognition starts is what broke live speech on the hosted site.
+        async function checkMicPermission() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(t => t.stop()); // release; grant persists
-                micReady = true;
-                return true;
-            } catch (err) {
-                micError = err;
-                return false;
+                if (navigator.permissions && navigator.permissions.query) {
+                    const status = await navigator.permissions.query({ name: 'microphone' });
+                    micPermState = status.state;  // 'granted' | 'denied' | 'prompt'
+                }
+            } catch (e) {
+                micPermState = 'unknown';
             }
+            return micPermState;
+        }
+
+        function voiceDiag() {
+            let framed = 'unknown';
+            try { framed = (window.self !== window.top) ? 'yes' : 'no'; } catch (e) { framed = 'blocked'; }
+            const err = micError ? (micError.name || 'Error') + ': ' + (micError.message || '') : 'none';
+            return '(secure=' + (window.isSecureContext ? 'yes' : 'no') +
+                ', framed=' + framed +
+                ', mediaDevices=' + (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'yes' : 'no') +
+                ', perm=' + micPermState +
+                ', err=' + err + ')';
+        }
+
+        // Best explanation we can give for why live speech was refused.
+        function blockedReason() {
+            let framed = false;
+            try { framed = window.self !== window.top; } catch (e) { framed = true; }
+            if (!window.isSecureContext) return 'Speech input needs HTTPS — open the secure (https://) version of this site.';
+            if (framed) return 'This page is inside a frame that is not allowed to use the microphone. Open the site in its own browser tab.';
+            if (micPermState === 'denied') return 'Microphone is blocked for this site. Click the padlock icon in the address bar, set Microphone to “Allow”, then reload.';
+            if (micPermState === 'granted') return 'Microphone is allowed, but the browser refused its live speech service. Record mode still works.';
+            return 'Microphone permission was not granted. Allow it and try again.';
         }
 
         function resetTurn() {
@@ -1074,6 +1092,10 @@
             recog.interimResults = true;
             recog.continuous = true;   // stay open across pauses
             recog.maxAlternatives = 1;
+
+            recog.onstart = () => {
+                if (voiceActive && vState === 'listening') $('voiceNote').textContent = '';
+            };
 
             recog.onresult = (e) => {
                 let interim = '';
@@ -1108,14 +1130,9 @@
                 }
                 if (err === 'not-allowed' || err === 'service-not-allowed') {
                     vSpeakDone = true;
-                    if (micReady) {
-                        // Mic is fine — it is Chrome's speech service that is blocked.
-                        $('voiceNote').textContent = 'The mic works, but the browser blocked its live speech service (common inside an embedded frame). Open the site in its own tab over HTTPS, or use Record mode.';
-                    } else {
-                        $('voiceNote').textContent = micHelp(micError);
-                    }
                     vUseRecorder = true;
                     $('voiceStart').textContent = '⏺ Record';
+                    $('voiceNote').textContent = blockedReason() + ' ' + voiceDiag();
                     setVoiceState('idle');
                 }
             };
@@ -1194,22 +1211,15 @@
             $('micBtn').classList.add('live');
             setVoiceState('idle', '');
 
-            if (vUseRecorder) {
-                $('voiceNote').textContent = canSR ? '' :
-                    'Live speech-to-text is unavailable in this browser — tap “Record”, speak, then tap again to send.';
+            if (!canSR) {
+                vUseRecorder = true;
+                $('voiceNote').textContent = 'Live speech-to-text is unavailable in this browser — tap “Record”, speak, then tap again to send.';
                 return;
             }
 
-            setVoiceState('idle', 'Requesting microphone…');
-            const ok = await prepareMic();
-            if (!voiceActive) return;
-            if (!ok) {
-                vUseRecorder = true;
-                $('voiceStart').textContent = '⏺ Record';
-                $('voiceNote').textContent = micHelp(micError);
-                setVoiceState('idle', '');
-                return;
-            }
+            // Permission lookup is async but non-blocking; start listening
+            // immediately so the gesture is still valid for speech recognition.
+            checkMicPermission();
             startListening();
         }
 
