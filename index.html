@@ -1050,16 +1050,30 @@
             try { framed = (window.self !== window.top) ? 'yes' : 'no'; } catch (e) { framed = 'blocked'; }
             const err = micError ? (micError.name || 'Error') + ': ' + (micError.message || '') : 'none';
             return '(secure=' + (window.isSecureContext ? 'yes' : 'no') +
+                ', policy=' + (micPolicyAllowed() ? 'allowed' : 'BLOCKED') +
                 ', framed=' + framed +
                 ', mediaDevices=' + (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'yes' : 'no') +
                 ', perm=' + micPermState +
                 ', err=' + err + ')';
         }
 
+        // Some hosts (Cloudflare included) can send a Permissions-Policy header
+        // such as `microphone=()`, which disables the mic for the whole document
+        // and OVERRIDES the normal browser permission. That blocks both live
+        // speech and recording, and cannot be fixed from inside the page.
+        function micPolicyAllowed() {
+            try {
+                const fp = document.permissionsPolicy || document.featurePolicy;
+                if (fp && typeof fp.allowsFeature === 'function') return fp.allowsFeature('microphone');
+            } catch (e) { /* not supported */ }
+            return true;  // unknown — assume allowed
+        }
+
         // Best explanation we can give for why live speech was refused.
         function blockedReason() {
             let framed = false;
             try { framed = window.self !== window.top; } catch (e) { framed = true; }
+            if (!micPolicyAllowed()) return 'The server sends a Permissions-Policy header that blocks the microphone for this whole page, which overrides the browser permission. The host must send "Permissions-Policy: microphone=(self)" — add a _headers file.';
             if (!window.isSecureContext) return 'Speech input needs HTTPS — open the secure (https://) version of this site.';
             if (framed) return 'This page is inside a frame that is not allowed to use the microphone. Open the site in its own browser tab.';
             if (micPermState === 'denied') return 'Microphone is blocked for this site. Click the padlock icon in the address bar, set Microphone to “Allow”, then reload.';
@@ -1336,4 +1350,3 @@
 </body>
 
 </html>
-
