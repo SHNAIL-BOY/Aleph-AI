@@ -1,4 +1,19 @@
+# Cloudflare Pages / Workers static-assets header rules.
+#
+# The site is currently served with:
+#     permissions-policy: camera=(), microphone=(), geolocation=()
+# `microphone=()` disables the microphone for the WHOLE document and overrides
+# the browser's site permission, which breaks voice mode (live speech and
+# recording alike).
+#
+# This file overrides that header and re-enables the mic for the site itself.
+# Rules in `_headers` take precedence over what Cloudflare sends by default.
+
 /*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Permissions-Policy: camera=(), microphone=(self), geolocation=()
+
+# If you would rather drop the header completely instead of restricting it,
+# replace the line above with a detach rule (the "! " prefix removes a header):
+#
+# /*
+#   ! Permissions-Policy
