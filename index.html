@@ -935,8 +935,10 @@
         let voiceActive = false;
         let vState = 'idle';
         let recog = null;
-        let vFinal = '';
         let vInterim = '';
+        let vTurnFinal = '';
+        let vCommitTimer = null;
+        let vCommitting = false;
         let vMuted = false;
         let vHandsFree = localStorage.getItem('aleph-handsfree') !== 'off';
         let vVoice = null;
@@ -945,6 +947,9 @@
         let vRecording = false;
         let vRecorder = null;
         let vChunks = [];
+        let micReady = false;       // getUserMedia actually succeeded
+        let micError = null;        // last permission/device error
+        let vUseRecorder = !canSR;  // record+transcribe instead of live SR
 
         // Turn markdown into something pleasant to listen to.
         function speakable(md) {
@@ -996,7 +1001,7 @@
             vState = state;
             $('orb').className = 'orb' + (state === 'idle' ? '' : ' ' + state);
             $('voiceState').textContent = ({
-                idle: canSR ? 'Tap the orb to talk' : 'Tap “Talk” to record',
+                idle: vUseRecorder ? 'Tap “Record” to speak' : 'Tap the orb to talk',
                 listening: 'Listening…',
                 thinking: 'Thinking…',
                 speaking: 'Speaking…'
@@ -1009,39 +1014,124 @@
             vRestartTimer = setTimeout(() => { if (voiceActive) startListening(); }, ms);
         }
 
+        // Turn off the microphone only after we know the real reason.
+        function micHelp(err) {
+            const name = (err && err.name) || (typeof err === 'string' ? err : '');
+            const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+            if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'not-allowed' || name === 'service-not-allowed') {
+                if (!window.isSecureContext) return 'Speech input needs HTTPS. Open the secure (https://) version of this site.';
+                if (framed) return 'This page is inside a frame that is not allowed to use the microphone. Open the site in its own browser tab and try again.';
+                return 'Microphone is blocked for this site. Click the padlock icon in the address bar, set Microphone to “Allow”, then reload.';
+            }
+            if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'No microphone found. Plug one in or pick an input device in your OS settings.';
+            if (name === 'NotReadableError' || name === 'TrackStartError') return 'Your microphone is busy in another app. Close it and try again.';
+            if (name === 'audio-capture') return 'No microphone available for speech recognition.';
+            if (!window.isSecureContext) return 'Speech input needs HTTPS. Open the secure (https://) version of this site.';
+            return 'Microphone unavailable' + (name ? ' (' + name + ')' : '') + '.';
+        }
+
+        // Ask for the mic up front so we can tell a real permission denial
+        // apart from a speech-service failure (iframe / insecure frame).
+        async function prepareMic() {
+            if (micReady) return true;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                micError = new Error('getUserMedia unsupported');
+                return false;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(t => t.stop()); // release; grant persists
+                micReady = true;
+                return true;
+            } catch (err) {
+                micError = err;
+                return false;
+            }
+        }
+
+        function resetTurn() {
+            vTurnFinal = '';
+            vInterim = '';
+            vCommitting = false;
+            clearTimeout(vCommitTimer);
+        }
+
+        function commitTurn() {
+            if (vCommitting) return;
+            const said = vTurnFinal.trim();
+            if (!said) return;
+            vCommitting = true;
+            clearTimeout(vCommitTimer);
+            resetTurn();
+            try { if (recog) recog.stop(); } catch (e) {}
+            handleUtterance(said);
+        }
+
         function ensureRecog() {
             if (recog) return recog;
             recog = new SR();
             recog.lang = 'en-US';
             recog.interimResults = true;
-            recog.continuous = false;
+            recog.continuous = true;   // stay open across pauses
             recog.maxAlternatives = 1;
+
             recog.onresult = (e) => {
-                vFinal = '';
-                vInterim = '';
+                let interim = '';
                 for (let i = e.resultIndex; i < e.results.length; i++) {
                     const t = e.results[i][0].transcript;
-                    if (e.results[i].isFinal) vFinal += t;
-                    else vInterim += t;
+                    if (e.results[i].isFinal) vTurnFinal += t;
+                    else interim += t;
                 }
-                const shown = (vFinal + ' ' + vInterim).trim();
+                vInterim = interim;
+                const shown = (vTurnFinal + ' ' + vInterim).trim();
                 $('voiceCaption').innerHTML = '<span class="you">You:</span> ' + escapeHtml(shown);
+                clearTimeout(vCommitTimer);
+                // Send once the user has been quiet for a moment.
+                if (vTurnFinal.trim()) vCommitTimer = setTimeout(commitTurn, 1300);
             };
+
             recog.onerror = (e) => {
-                if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-                    $('voiceNote').textContent = 'Microphone blocked — allow access in your browser and retry.';
+                const err = (e && e.error) || '';
+                if (err === 'no-speech' || err === 'aborted') return;  // onend keeps the loop alive
+                if (err === 'network') {
+                    $('voiceNote').textContent = 'Speech service unreachable — retrying…';
+                    scheduleListen(900);
+                    return;
+                }
+                if (err === 'audio-capture') {
+                    $('voiceNote').textContent = micHelp('audio-capture');
                     vSpeakDone = true;
+                    vUseRecorder = true;
+                    $('voiceStart').textContent = '⏺ Record';
+                    setVoiceState('idle');
+                    return;
+                }
+                if (err === 'not-allowed' || err === 'service-not-allowed') {
+                    vSpeakDone = true;
+                    if (micReady) {
+                        // Mic is fine — it is Chrome's speech service that is blocked.
+                        $('voiceNote').textContent = 'The mic works, but the browser blocked its live speech service (common inside an embedded frame). Open the site in its own tab over HTTPS, or use Record mode.';
+                    } else {
+                        $('voiceNote').textContent = micHelp(micError);
+                    }
+                    vUseRecorder = true;
+                    $('voiceStart').textContent = '⏺ Record';
                     setVoiceState('idle');
                 }
             };
+
             recog.onend = () => {
                 if (!voiceActive || vState !== 'listening') return;
-                const said = vFinal.trim();
-                vFinal = '';
-                vInterim = '';
-                if (said) handleUtterance(said);
-                else scheduleListen(350);
+                // Use interim text too, in case the engine never finalised it.
+                const pending = (vTurnFinal + ' ' + vInterim).trim();
+                if (pending) {
+                    vTurnFinal = pending;
+                    commitTurn();
+                    return;
+                }
+                scheduleListen(300);  // heard nothing yet — keep listening
             };
+
             return recog;
         }
 
@@ -1049,18 +1139,19 @@
             if (!voiceActive) return;
             if (synth) { try { synth.cancel(); } catch (e) {} }
             vSpeakDone = true;
-            if (!canSR) { $('voiceNote').textContent = 'Tap “Talk” to record your message.'; return; }
+            if (vUseRecorder) { startRecording(); return; }
             const r = ensureRecog();
-            vFinal = '';
-            vInterim = '';
+            resetTurn();
             try { r.start(); } catch (e) { /* already running */ }
             setVoiceState('listening', '<span class="you">You:</span> …');
             $('voiceStart').textContent = '⏸ Pause';
         }
 
         function stopListening() {
+            clearTimeout(vRestartTimer);
+            resetTurn();
             if (recog) { try { recog.stop(); } catch (e) {} }
-            $('voiceStart').textContent = '🎙 Talk';
+            $('voiceStart').textContent = vUseRecorder ? '⏺ Record' : '🎙 Talk';
         }
 
         async function handleUtterance(text) {
@@ -1096,15 +1187,30 @@
             else setVoiceState('idle', $('voiceCaption').innerHTML);
         }
 
-        function enterVoice() {
+        async function enterVoice() {
             if (voiceActive) return;
             voiceActive = true;
             $('voiceBg').classList.add('open');
             $('micBtn').classList.add('live');
-            $('voiceNote').textContent = canSR ? '' :
-                'Live speech-to-text is unavailable here — tap “Talk” to record; it is transcribed on the server.';
             setVoiceState('idle', '');
-            if (canSR) startListening();
+
+            if (vUseRecorder) {
+                $('voiceNote').textContent = canSR ? '' :
+                    'Live speech-to-text is unavailable in this browser — tap “Record”, speak, then tap again to send.';
+                return;
+            }
+
+            setVoiceState('idle', 'Requesting microphone…');
+            const ok = await prepareMic();
+            if (!voiceActive) return;
+            if (!ok) {
+                vUseRecorder = true;
+                $('voiceStart').textContent = '⏺ Record';
+                $('voiceNote').textContent = micHelp(micError);
+                setVoiceState('idle', '');
+                return;
+            }
+            startListening();
         }
 
         function exitVoice() {
@@ -1116,6 +1222,7 @@
             stopRecording();
             if (synth) { try { synth.cancel(); } catch (e) {} }
             vSpeakDone = true;
+            vUseRecorder = !canSR;   // retry live speech next time
             setVoiceState('idle');
         }
 
@@ -1141,7 +1248,8 @@
                 $('voiceStart').textContent = '⏹ Stop';
                 setVoiceState('listening', 'Recording… tap Stop when you are done.');
             }).catch(err => {
-                $('voiceNote').textContent = 'Microphone blocked: ' + err.message;
+                micError = err;
+                $('voiceNote').textContent = micHelp(err);
             });
         }
 
@@ -1176,7 +1284,7 @@
         };
         $('voiceStart').onclick = () => {
             if (!voiceActive) return;
-            if (!canSR) { startRecording(); return; }
+            if (vUseRecorder) { startRecording(); return; }
             if (vState === 'listening') { stopListening(); setVoiceState('idle', $('voiceCaption').innerHTML); }
             else startListening();
         };
@@ -1194,16 +1302,15 @@
         $('micBtn').onclick = enterVoice;
         $('orb').onclick = () => {
             if (!voiceActive) return;
+            if (vUseRecorder) { startRecording(); return; }
             if (vState === 'speaking' || vState === 'thinking') {
                 if (synth) { try { synth.cancel(); } catch (e) {} }
                 vSpeakDone = true;
-                if (!canSR) { startRecording(); return; }
                 startListening();
             } else if (vState === 'listening') {
                 stopListening();
                 setVoiceState('idle', $('voiceCaption').innerHTML);
             } else {
-                if (!canSR) { startRecording(); return; }
                 startListening();
             }
         };
