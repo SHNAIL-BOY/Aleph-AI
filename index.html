@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Aleph AI — a AI by the creator of Shnail-platformer.">
     <title>Aleph AI</title>
-    <link id="icon" rel="icon" type="image/x-icon" href="https://kids.kiddle.co/images/thumb/e/e0/Aleph0.svg/150px-Aleph0.svg.png">
-    <link rel="apple-touch-icon" href="https://kids.kiddle.co/images/thumb/e/e0/Aleph0.svg/150px-Aleph0.svg.png">
+    <link id="favicon" rel="icon" type="image/x-icon" href="https://kids.kiddle.co/images/thumb/e/e0/Aleph0.svg/150px-Aleph0.svg.png">
+    <link id="apple-touch-icon" rel="icon" type="image/x-icon" href="https://kids.kiddle.co/images/thumb/e/e0/Aleph0.svg/150px-Aleph0.svg.png">
     <style>
         :root {
             --bg: #0b0f18;
@@ -424,6 +424,139 @@
             color: #ffb4b4;
         }
 
+        /* ---------------------------- voice mode ---------------------------- */
+        .composer .mic-btn {
+            width: 40px;
+            height: 40px;
+            flex: none;
+            border: 1px solid var(--border2);
+            border-radius: 11px;
+            background: var(--panel2);
+            color: #fff;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 17px;
+        }
+
+        .composer .mic-btn:hover {
+            background: #20283a;
+        }
+
+        .composer .mic-btn.live {
+            background: #e5484d;
+            border-color: #e5484d;
+            animation: micpulse 1.2s infinite;
+        }
+
+        @keyframes micpulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, .55); }
+            50% { box-shadow: 0 0 0 9px rgba(229, 72, 77, 0); }
+        }
+
+        .voice-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: none;
+            place-items: center;
+            text-align: center;
+            color: var(--text);
+            background: radial-gradient(circle at 50% 28%, #1b1546 0, #07090f 62%);
+        }
+
+        .voice-bg.open {
+            display: grid;
+        }
+
+        .voice {
+            width: min(560px, 92vw);
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .orb {
+            width: 168px;
+            height: 168px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: radial-gradient(circle at 35% 30%, #8f7bff, #5b3df0 55%, #2a1a6b);
+            box-shadow: 0 0 60px rgba(124, 92, 255, .45);
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+
+        .orb:hover {
+            transform: scale(1.03);
+        }
+
+        .orb.listening {
+            animation: breathe 1.6s ease-in-out infinite;
+            box-shadow: 0 0 85px rgba(124, 92, 255, .85);
+        }
+
+        .orb.thinking {
+            background: radial-gradient(circle at 35% 30%, #8ef0b0, #22c55e 55%, #14532d);
+            animation: spin 1.5s linear infinite;
+            box-shadow: 0 0 70px rgba(34, 197, 94, .6);
+        }
+
+        .orb.speaking {
+            background: radial-gradient(circle at 35% 30%, #a7dcff, #3b82f6 55%, #1e3a8a);
+            animation: breathe .65s ease-in-out infinite;
+            box-shadow: 0 0 95px rgba(90, 200, 255, .8);
+        }
+
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .voice-state {
+            font-size: 15px;
+            color: var(--muted);
+            letter-spacing: .3px;
+        }
+
+        .voice-caption {
+            min-height: 54px;
+            max-width: 520px;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        .voice-caption .you {
+            color: var(--accent2);
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .voice-controls .btn {
+            width: auto;
+        }
+
+        .voice select {
+            background: #0b0f17;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 9px;
+            padding: 8px;
+            font-size: 12px;
+            max-width: 100%;
+        }
+
+        .voice-note {
+            color: var(--dim);
+            font-size: 12px;
+            min-height: 16px;
+            max-width: 460px;
+        }
+
         @media (max-width:768px) {
             aside {
                 position: fixed;
@@ -471,17 +604,34 @@
                 <button class="menu-btn" id="menuBtn">☰</button>
                 <div class="logo" style="width:30px;height:30px;border-radius:9px;font-size:14px">ℵ₀</div>
                 <b>Aleph AI</b>
-                <span class="model-pill" id="modelPill">gpt-4o-mini ▾</span>
+                <span class="model-pill" id="modelPill">openai/gpt-oss-120b ▾</span>
             </header>
             <div id="messages"></div>
             <div class="composer">
                 <form id="form">
                     <textarea id="input" rows="1" maxlength="12000" placeholder="Message Aleph AI…"></textarea>
+                    <button type="button" class="mic-btn" id="micBtn" title="Voice mode">🎙</button>
                     <button type="submit" id="send">↑</button>
                 </form>
                 <div class="hint">Enter to send · Shift+Enter for a new line</div>
             </div>
         </main>
+    </div>
+
+    <div class="voice-bg" id="voiceBg">
+        <div class="voice">
+            <div class="orb" id="orb" title="Tap to talk"></div>
+            <div class="voice-state" id="voiceState">Tap the orb to talk</div>
+            <div class="voice-caption" id="voiceCaption"></div>
+            <div class="voice-controls">
+                <button class="btn" id="voiceStart" type="button">🎙 Talk</button>
+                <button class="btn" id="voiceMute" type="button">🔊 Sound on</button>
+                <button class="btn" id="voiceHands" type="button">🔁 Hands-free: on</button>
+                <button class="btn" id="voiceClose" type="button">✕ End</button>
+            </div>
+            <select id="voicePick" title="Voice"></select>
+            <div class="voice-note" id="voiceNote"></div>
+        </div>
     </div>
 
     <div class="modal-bg" id="settingsModal">
@@ -492,10 +642,9 @@
             <input id="serverUrl" type="text" placeholder="https://aleph-ai-server.onrender.com" />
             <label for="modelSel">Model</label>
             <select id="modelSel">
-                <option value="gpt-4o-mini">gpt-4o-mini (fast, cheap)</option>
-                <option value="gpt-4o">gpt-4o (smarter)</option>
-                <option value="gpt-4-turbo">gpt-4-turbo</option>
-                <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (smarter, recommended)</option>
+                <option value="openai/gpt-oss-20b">openai/gpt-oss-20b (fast, lighter)</option>
+                <option value="qwen/qwen3.8-27b">qwen/qwen3.8-27b (131K context)</option>
             </select>
             <div class="row">
                 <button class="btn" id="resetSettings">Reset to default</button>
@@ -515,8 +664,20 @@
            no URL needed. Settings can still override it per-browser. */
         const DEFAULT_URL = 'https://aleph-ai-server.onrender.com';
 
+        // Live Groq models (console.groq.com/docs/models). Groq retires models
+        // on a schedule, so old names are dropped rather than silently failing.
+        const MODELS = [
+            'openai/gpt-oss-120b',
+            'openai/gpt-oss-20b',
+            'qwen/qwen3.8-27b'
+        ];
+        const DEFAULT_MODEL = 'openai/gpt-oss-120b';
+
         let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        let model = localStorage.getItem(MODEL_KEY) || 'gpt-4o-mini';
+        // Ignore a saved model that is no longer valid (e.g. gpt-4o-mini).
+        const savedModel = localStorage.getItem(MODEL_KEY) || '';
+        let model = MODELS.includes(savedModel) ? savedModel : DEFAULT_MODEL;
+        if (!MODELS.includes(savedModel)) localStorage.removeItem(MODEL_KEY);
         let serverUrl = localStorage.getItem(URL_KEY) || DEFAULT_URL;
         let typing = false;
 
@@ -651,13 +812,13 @@
             return data;
         }
 
-        async function send() {
-            const text = inputEl.value.trim();
-            if (!text || typing) return;
+        // Core send routine — shared by the text box and voice mode.
+        // Returns the assistant reply (or null on failure).
+        async function sendText(rawText) {
+            const text = (rawText || '').trim();
+            if (!text || typing) return null;
 
             history.push({ role: 'user', content: text });
-            inputEl.value = '';
-            inputEl.style.height = 'auto';
             typing = true;
             render();
 
@@ -669,6 +830,7 @@
                 }))
             };
 
+            let reply = null;
             try {
                 let data;
                 try {
@@ -679,17 +841,27 @@
                     await new Promise(r => setTimeout(r, 2000));
                     data = await callServer(payload);
                 }
-                const reply = data.choices?.[0]?.message?.content || '(no response)';
+                reply = data.choices?.[0]?.message?.content || '(no response)';
                 history.push({ role: 'assistant', content: reply });
                 setStatus('ok', 'Online · ' + hostOf(baseUrl()));
             } catch (e) {
                 history.push({ role: 'error', content: 'Error: ' + e.message });
                 setStatus('off', 'Connection failed');
+                reply = null;
             }
 
             typing = false;
             localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
             render();
+            return reply;
+        }
+
+        function send() {
+            const text = inputEl.value.trim();
+            if (!text || typing) return;
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+            return sendText(text);
         }
 
         /* --------------------------- UI events --------------------------- */
@@ -753,6 +925,292 @@
         };
         $('settingsModal').addEventListener('click', e => {
             if (e.target.id === 'settingsModal') $('settingsModal').classList.remove('open');
+        });
+
+        /* ---------------------------- voice mode ---------------------------- */
+
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const synth = window.speechSynthesis;
+        const canSR = !!SR;
+
+        let voiceActive = false;
+        let vState = 'idle';
+        let recog = null;
+        let vFinal = '';
+        let vInterim = '';
+        let vMuted = false;
+        let vHandsFree = localStorage.getItem('aleph-handsfree') !== 'off';
+        let vVoice = null;
+        let vRestartTimer = null;
+        let vSpeakDone = true;
+        let vRecording = false;
+        let vRecorder = null;
+        let vChunks = [];
+
+        // Turn markdown into something pleasant to listen to.
+        function speakable(md) {
+            const fence = new RegExp(BT + BT + BT + '[\\s\\S]*?' + BT + BT + BT, 'g');
+            const inline = new RegExp(BT + '([^' + BT + ']+)' + BT, 'g');
+            return String(md)
+                .replace(fence, ' (code block) ')
+                .replace(inline, '$1')
+                .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s)]+)\)/g, '$1')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/^[ \t]*[#>*\-][ \t]*/gm, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function loadVoices() {
+            if (!synth) return;
+            const all = synth.getVoices() || [];
+            const en = all.filter(v => /^en/i.test(v.lang || ''));
+            const list = en.length ? en : all;
+            const sel = $('voicePick');
+            sel.innerHTML = '';
+            list.forEach(v => {
+                const o = document.createElement('option');
+                o.value = v.name;
+                o.textContent = v.name + (v.lang ? ' — ' + v.lang : '');
+                sel.appendChild(o);
+            });
+            if (!list.length) {
+                const o = document.createElement('option');
+                o.value = '';
+                o.textContent = 'System default';
+                sel.appendChild(o);
+            }
+            const saved = localStorage.getItem('aleph-voice');
+            const pick = list.find(v => v.name === saved) ||
+                list.find(v => /natural|google|samantha|aria|zira|jenny/i.test(v.name)) ||
+                list[0] || null;
+            vVoice = pick;
+            if (pick) sel.value = pick.name;
+        }
+
+        if (synth) {
+            loadVoices();
+            synth.onvoiceschanged = loadVoices;
+        }
+
+        function setVoiceState(state, caption) {
+            vState = state;
+            $('orb').className = 'orb' + (state === 'idle' ? '' : ' ' + state);
+            $('voiceState').textContent = ({
+                idle: canSR ? 'Tap the orb to talk' : 'Tap “Talk” to record',
+                listening: 'Listening…',
+                thinking: 'Thinking…',
+                speaking: 'Speaking…'
+            })[state] || '';
+            if (caption !== undefined) $('voiceCaption').innerHTML = caption;
+        }
+
+        function scheduleListen(ms) {
+            clearTimeout(vRestartTimer);
+            vRestartTimer = setTimeout(() => { if (voiceActive) startListening(); }, ms);
+        }
+
+        function ensureRecog() {
+            if (recog) return recog;
+            recog = new SR();
+            recog.lang = 'en-US';
+            recog.interimResults = true;
+            recog.continuous = false;
+            recog.maxAlternatives = 1;
+            recog.onresult = (e) => {
+                vFinal = '';
+                vInterim = '';
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                    const t = e.results[i][0].transcript;
+                    if (e.results[i].isFinal) vFinal += t;
+                    else vInterim += t;
+                }
+                const shown = (vFinal + ' ' + vInterim).trim();
+                $('voiceCaption').innerHTML = '<span class="you">You:</span> ' + escapeHtml(shown);
+            };
+            recog.onerror = (e) => {
+                if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+                    $('voiceNote').textContent = 'Microphone blocked — allow access in your browser and retry.';
+                    vSpeakDone = true;
+                    setVoiceState('idle');
+                }
+            };
+            recog.onend = () => {
+                if (!voiceActive || vState !== 'listening') return;
+                const said = vFinal.trim();
+                vFinal = '';
+                vInterim = '';
+                if (said) handleUtterance(said);
+                else scheduleListen(350);
+            };
+            return recog;
+        }
+
+        function startListening() {
+            if (!voiceActive) return;
+            if (synth) { try { synth.cancel(); } catch (e) {} }
+            vSpeakDone = true;
+            if (!canSR) { $('voiceNote').textContent = 'Tap “Talk” to record your message.'; return; }
+            const r = ensureRecog();
+            vFinal = '';
+            vInterim = '';
+            try { r.start(); } catch (e) { /* already running */ }
+            setVoiceState('listening', '<span class="you">You:</span> …');
+            $('voiceStart').textContent = '⏸ Pause';
+        }
+
+        function stopListening() {
+            if (recog) { try { recog.stop(); } catch (e) {} }
+            $('voiceStart').textContent = '🎙 Talk';
+        }
+
+        async function handleUtterance(text) {
+            setVoiceState('thinking', '<span class="you">You:</span> ' + escapeHtml(text) + '<br><br>ℵ₀: …');
+            const reply = await sendText(text);
+            if (!voiceActive) return;
+            const shown = reply || '(could not reach the server)';
+            $('voiceCaption').innerHTML = '<span class="you">You:</span> ' + escapeHtml(text) +
+                '<br><br>ℵ₀: ' + (reply ? renderMarkdown(reply) : escapeHtml(shown));
+            speak(shown);
+        }
+
+        function speak(text) {
+            if (!voiceActive) return;
+            if (!synth || vMuted) { afterSpeak(); return; }
+            vSpeakDone = false;
+            setVoiceState('speaking');
+            try { synth.cancel(); } catch (e) {}
+            const u = new SpeechSynthesisUtterance(speakable(text));
+            if (vVoice) u.voice = vVoice;
+            u.rate = 1;
+            u.pitch = 1;
+            u.volume = 1;
+            const done = () => { if (vSpeakDone) return; vSpeakDone = true; afterSpeak(); };
+            u.onend = done;
+            u.onerror = done;
+            synth.speak(u);
+        }
+
+        function afterSpeak() {
+            if (!voiceActive) return;
+            if (vHandsFree) scheduleListen(350);
+            else setVoiceState('idle', $('voiceCaption').innerHTML);
+        }
+
+        function enterVoice() {
+            if (voiceActive) return;
+            voiceActive = true;
+            $('voiceBg').classList.add('open');
+            $('micBtn').classList.add('live');
+            $('voiceNote').textContent = canSR ? '' :
+                'Live speech-to-text is unavailable here — tap “Talk” to record; it is transcribed on the server.';
+            setVoiceState('idle', '');
+            if (canSR) startListening();
+        }
+
+        function exitVoice() {
+            voiceActive = false;
+            $('voiceBg').classList.remove('open');
+            $('micBtn').classList.remove('live');
+            clearTimeout(vRestartTimer);
+            stopListening();
+            stopRecording();
+            if (synth) { try { synth.cancel(); } catch (e) {} }
+            vSpeakDone = true;
+            setVoiceState('idle');
+        }
+
+        /* Fallback for browsers without SpeechRecognition: record, then
+           transcribe via the server (Groq Whisper) at /api/transcribe. */
+        function startRecording() {
+            if (vRecording) { stopRecording(); return; }
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                $('voiceNote').textContent = 'Voice input is not supported in this browser. Try Chrome, Edge, or Safari.';
+                return;
+            }
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                vChunks = [];
+                vRecorder = new MediaRecorder(stream);
+                vRecorder.ondataavailable = e => { if (e.data && e.data.size) vChunks.push(e.data); };
+                vRecorder.onstop = () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(vChunks, { type: (vRecorder && vRecorder.mimeType) || 'audio/webm' });
+                    transcribeBlob(blob);
+                };
+                vRecorder.start();
+                vRecording = true;
+                $('voiceStart').textContent = '⏹ Stop';
+                setVoiceState('listening', 'Recording… tap Stop when you are done.');
+            }).catch(err => {
+                $('voiceNote').textContent = 'Microphone blocked: ' + err.message;
+            });
+        }
+
+        function stopRecording() {
+            if (vRecorder && vRecording) { try { vRecorder.stop(); } catch (e) {} }
+            vRecording = false;
+            $('voiceStart').textContent = '🎙 Talk';
+        }
+
+        async function transcribeBlob(blob) {
+            setVoiceState('thinking', 'Transcribing…');
+            try {
+                const fd = new FormData();
+                fd.append('file', blob, 'audio.webm');
+                fd.append('model', 'whisper-large-v3-turbo');
+                const r = await fetch(baseUrl() + '/api/transcribe', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (!r.ok) throw new Error((d.error && d.error.message) || 'Transcription failed');
+                const text = (d.text || '').trim();
+                if (text) handleUtterance(text);
+                else setVoiceState('idle', 'Didn’t catch that — try again.');
+            } catch (e) {
+                setVoiceState('idle', 'Error: ' + e.message);
+            }
+        }
+
+        /* Voice controls */
+        $('voicePick').onchange = () => {
+            const name = $('voicePick').value;
+            localStorage.setItem('aleph-voice', name);
+            vVoice = (synth ? synth.getVoices().find(v => v.name === name) : null) || null;
+        };
+        $('voiceStart').onclick = () => {
+            if (!voiceActive) return;
+            if (!canSR) { startRecording(); return; }
+            if (vState === 'listening') { stopListening(); setVoiceState('idle', $('voiceCaption').innerHTML); }
+            else startListening();
+        };
+        $('voiceMute').onclick = () => {
+            vMuted = !vMuted;
+            $('voiceMute').textContent = vMuted ? '🔇 Muted' : '🔊 Sound on';
+            if (vMuted && synth) { try { synth.cancel(); } catch (e) {} vSpeakDone = true; }
+        };
+        $('voiceHands').onclick = () => {
+            vHandsFree = !vHandsFree;
+            localStorage.setItem('aleph-handsfree', vHandsFree ? 'on' : 'off');
+            $('voiceHands').textContent = '🔁 Hands-free: ' + (vHandsFree ? 'on' : 'off');
+        };
+        $('voiceClose').onclick = exitVoice;
+        $('micBtn').onclick = enterVoice;
+        $('orb').onclick = () => {
+            if (!voiceActive) return;
+            if (vState === 'speaking' || vState === 'thinking') {
+                if (synth) { try { synth.cancel(); } catch (e) {} }
+                vSpeakDone = true;
+                if (!canSR) { startRecording(); return; }
+                startListening();
+            } else if (vState === 'listening') {
+                stopListening();
+                setVoiceState('idle', $('voiceCaption').innerHTML);
+            } else {
+                if (!canSR) { startRecording(); return; }
+                startListening();
+            }
+        };
+        $('voiceHands').textContent = '🔁 Hands-free: ' + (vHandsFree ? 'on' : 'off');
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && voiceActive) exitVoice();
         });
 
         updateModelUI();
