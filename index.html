@@ -607,6 +607,18 @@
             max-width: 460px;
         }
 
+
+        .history-tools { display:flex; gap:6px; flex-wrap:wrap; }
+        .history-search { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px; font-size:12px; }
+        .mini-btn { border:1px solid var(--border2); background:var(--panel2); color:#dbe1ed; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:11px; }
+        .mini-btn.active { background:#30265c; border-color:var(--accent); color:#fff; }
+        .msg-actions { display:flex; gap:6px; margin-top:7px; opacity:.72; flex-wrap:wrap; }
+        .msg-actions button { border:1px solid var(--border); background:var(--panel2); color:var(--muted); border-radius:7px; padding:4px 7px; cursor:pointer; font-size:11px; }
+        .msg-actions button:hover { color:#fff; border-color:var(--accent); }
+        .file-chip { color:var(--accent2); font-size:12px; margin-top:5px; }
+        .mode-note { color:var(--accent2); font-size:11px; text-align:center; padding-top:5px; }
+        .chat-item[hidden] { display:none; }
+
         @media (max-width:768px) {
             aside {
                 position: fixed;
@@ -641,6 +653,8 @@
             </div>
             <button class="btn" id="newChat">＋ New chat</button>
             <div class="history-heading">Chat history</div>
+            <input id="historySearch" class="history-search" type="search" placeholder="Search chats…" aria-label="Search chat history">
+            <div class="history-tools"><button class="mini-btn" id="temporaryBtn" type="button">◷ Temporary chat</button><button class="mini-btn" id="exportBtn" type="button">↓ Export</button></div>
             <div id="chatList" class="chat-list"></div>
             <div class="side-note"><b>Aleph AI</b>
                 <p style="margin-top:7px">An AI made by the creator of Shnail-platformer.</p>
@@ -661,11 +675,16 @@
             <div id="messages"></div>
             <div class="composer">
                 <form id="form">
+                    <input id="fileInput" type="file" hidden multiple accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.java,.c,.cpp,.h,.xml,.yaml,.yml,.log,.sh,.sql">
+                    <button type="button" class="mic-btn" id="attachBtn" title="Attach text or code files">＋</button>
                     <textarea id="input" rows="1" maxlength="12000" placeholder="Message Aleph AI…"></textarea>
+                    <button type="button" class="mic-btn" id="codeModeBtn" title="Toggle code mode">{ }</button>
+                    <button type="button" class="mic-btn" id="dictateBtn" title="Dictate message">🎤</button>
                     <button type="button" class="mic-btn" id="micBtn" title="Voice mode">🎙</button>
                     <button type="submit" id="send">↑</button>
                 </form>
-                <div class="hint">Enter to send · Shift+Enter for a new line</div>
+                <div id="attachmentNote" class="mode-note"></div>
+                <div class="hint">Enter to send · Shift+Enter for a new line · Ctrl+K search · Ctrl+Shift+O new chat</div>
             </div>
         </main>
     </div>
@@ -739,6 +758,11 @@
         if (!MODELS.includes(savedModel)) localStorage.removeItem(MODEL_KEY);
         let serverUrl = localStorage.getItem(URL_KEY) || DEFAULT_URL;
         let typing = false;
+        let temporaryMode = false;
+        let temporaryHistory = [];
+        let codeMode = false;
+        let pendingFiles = [];
+        let dictation = null;
 
         const $ = id => document.getElementById(id);
         const messagesEl = $('messages');
@@ -775,6 +799,7 @@
         }
 
         function saveChats() {
+            if (temporaryMode) { renderChatList(); return; }
             const current = chats.find(c => c.id === activeChatId);
             if (current) { current.messages = history; current.updatedAt = Date.now(); }
             localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
@@ -789,11 +814,14 @@
         function renderChatList() {
             const list = $('chatList'); if (!list) return;
             list.innerHTML = '';
+            if (temporaryMode) { list.innerHTML = '<div class="chat-empty">Temporary chat — not saved.</div>'; return; }
+            const filter = ($('historySearch')?.value || '').toLowerCase().trim();
             const sorted = [...chats].sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
             if (!sorted.length) { list.innerHTML = '<div class="chat-empty">Your chats will appear here.</div>'; return; }
             sorted.forEach(chat => {
                 const item = document.createElement('div');
                 item.className = 'chat-item' + (chat.id === activeChatId ? ' active' : '');
+                item.hidden = !!filter && !(chat.title || '').toLowerCase().includes(filter) && !(chat.messages || []).some(m => (m.content || '').toLowerCase().includes(filter));
                 const title = document.createElement('span'); title.className = 'chat-title';
                 title.textContent = chat.title || chatTitle(chat.messages || []); title.title = title.textContent;
                 const del = document.createElement('button'); del.className = 'chat-delete'; del.textContent = '×'; del.title = 'Delete chat';
@@ -802,11 +830,13 @@
             });
         }
         function switchChat(id) {
+            temporaryMode = false; $('temporaryBtn').classList.remove('active');
             const chat = chats.find(c => c.id === id); if (!chat) return;
             activeChatId = id; history = chat.messages || []; typing = false;
             saveChats(); render(); $('sidebar').classList.remove('open');
         }
         function createChat() {
+            temporaryMode = false; $('temporaryBtn').classList.remove('active');
             const chat = { id:'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2,7), title:'New chat', messages:[], updatedAt:Date.now() };
             chats.unshift(chat); activeChatId = chat.id; history = chat.messages; typing = false;
             saveChats(); render(); inputEl.focus();
@@ -843,8 +873,15 @@
                 bub.className = 'bubble' + (m.role === 'user' ? ' user' : '') + (m.role === 'error' ? ' err' : '');
                 if (m.role === 'user') bub.textContent = m.content;
                 else bub.innerHTML = renderMarkdown(m.content);
-                row.appendChild(av);
-                row.appendChild(bub);
+                if (m.files?.length) { const files = document.createElement('div'); files.className='file-chip'; files.textContent='📎 '+m.files.map(f=>f.name).join(', '); bub.appendChild(files); }
+                row.appendChild(av); row.appendChild(bub);
+                if (m.role === 'user' || m.role === 'assistant') {
+                    const actions=document.createElement('div'); actions.className='msg-actions';
+                    if (m.role === 'user') { const edit=document.createElement('button'); edit.textContent='Edit'; edit.onclick=()=>editMessage(history.indexOf(m)); actions.appendChild(edit); }
+                    if (m.role === 'assistant') { const regen=document.createElement('button'); regen.textContent='Regenerate'; regen.onclick=()=>regenerateMessage(history.indexOf(m)); actions.appendChild(regen); }
+                    const copy=document.createElement('button'); copy.textContent='Copy'; copy.onclick=()=>navigator.clipboard?.writeText(m.content || ''); actions.appendChild(copy);
+                    bub.appendChild(actions);
+                }
                 messagesEl.appendChild(row);
             });
             if (typing) {
@@ -923,8 +960,12 @@
             const text = (rawText || '').trim();
             if (!text || typing) return null;
 
-            if (!activeChatId) createChat();
-            history.push({ role: 'user', content: text });
+            if (!activeChatId && !temporaryMode) createChat();
+            const fileContext = pendingFiles.map(f => `\n\n[Attached file: ${f.name}]\n${f.content}`).join('');
+            const fullText = text + fileContext;
+            const messageFiles = pendingFiles.map(f => ({name:f.name}));
+            pendingFiles = []; $('attachmentNote').textContent = '';
+            history.push({ role: 'user', content: fullText, files: messageFiles });
             const active = chats.find(c => c.id === activeChatId);
             if (active) active.title = chatTitle(history);
             saveChats();
@@ -933,10 +974,10 @@
 
             const payload = {
                 model,
-                messages: history.map(m => ({
+                messages: [...(codeMode ? [{role:'system',content:'You are in Code Mode. Prioritize programming help, provide complete runnable code when appropriate, use fenced code blocks with language labels, explain important changes, and avoid unrelated prose.'}] : []), ...history.map(m => ({
                     role: m.role === 'error' ? 'assistant' : m.role,
                     content: m.content
-                }))
+                }))]
             };
 
             let reply = null;
@@ -973,6 +1014,38 @@
             return sendText(text);
         }
 
+        function editMessage(index) {
+            const msg=history[index]; if (!msg || msg.role!=='user' || typing) return;
+            const edited=prompt('Edit your message:', msg.content); if (edited===null || !edited.trim()) return;
+            history=history.slice(0,index);
+            if (temporaryMode) temporaryHistory=history; else saveChats();
+            render(); sendText(edited.trim());
+        }
+        async function regenerateMessage(index) {
+            if (typing || index<0 || history[index]?.role!=='assistant') return;
+            history=history.slice(0,index); if (temporaryMode) temporaryHistory=history; else saveChats();
+            typing=true; render();
+            const payload={model,messages:[...(codeMode?[{role:'system',content:'You are in Code Mode. Prioritize programming help and use clear fenced code blocks.'}]:[]),...history.map(m=>({role:m.role==='error'?'assistant':m.role,content:m.content}))]};
+            try { const data=await callServer(payload); history.push({role:'assistant',content:data.choices?.[0]?.message?.content||'(no response)'}); setStatus('ok','Online · '+hostOf(baseUrl())); }
+            catch(e){history.push({role:'error',content:'Error: '+e.message});setStatus('off','Connection failed');}
+            typing=false; if(temporaryMode) temporaryHistory=history; else saveChats(); render();
+        }
+        function startTemporaryChat(){ temporaryMode=true; temporaryHistory=[]; history=temporaryHistory; activeChatId=null; typing=false; $('temporaryBtn').classList.add('active'); renderChatList(); render(); inputEl.focus(); }
+        function exportConversation(){
+            const data={title:temporaryMode?'Temporary chat':(chats.find(c=>c.id===activeChatId)?.title||'Aleph AI chat'),exportedAt:new Date().toISOString(),messages:history};
+            const format=prompt('Export format: type txt, md, or json','md'); if(!format)return;
+            let content, type, ext; const f=format.toLowerCase().trim();
+            if(f==='json'){content=JSON.stringify(data,null,2);type='application/json';ext='json';}
+            else if(f==='txt'||f==='md'){content=history.map(m=>`## ${m.role==='user'?'You':'Aleph AI'}\n\n${m.content}`).join('\n\n---\n\n');type='text/plain';ext=f;}
+            else {alert('Choose txt, md, or json.');return;}
+            const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='aleph-chat.'+ext; a.click(); URL.revokeObjectURL(url);
+        }
+        async function handleFiles(files){
+            const allowed=/\.(txt|md|csv|json|js|ts|jsx|tsx|html|css|py|java|c|cpp|h|xml|yaml|yml|log|sh|sql)$/i;
+            for(const file of files){ if(!allowed.test(file.name)){alert('Unsupported file: '+file.name+'\nFor now, upload text, document, or code files (TXT, MD, CSV, JSON, JS, HTML, CSS, PY, etc.).');continue;} if(file.size>500000){alert(file.name+' is over 500 KB. Please use a smaller file.');continue;} const content=await file.text(); pendingFiles.push({name:file.name,content}); }
+            $('attachmentNote').textContent=pendingFiles.length?'📎 '+pendingFiles.map(f=>f.name).join(', '):'';
+        }
+
         /* --------------------------- UI events --------------------------- */
 
         formEl.addEventListener('submit', e => {
@@ -991,6 +1064,29 @@
         });
 
         $('newChat').onclick = createChat;
+        $('historySearch').addEventListener('input', renderChatList);
+        $('temporaryBtn').onclick = startTemporaryChat;
+        $('exportBtn').onclick = exportConversation;
+        $('attachBtn').onclick = () => $('fileInput').click();
+        $('fileInput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
+        $('codeModeBtn').onclick = () => { codeMode=!codeMode; $('codeModeBtn').classList.toggle('active',codeMode); $('codeModeBtn').title=codeMode?'Code Mode is on':'Code Mode is off'; $('attachmentNote').textContent=codeMode?'Code Mode enabled'+(pendingFiles.length?' · '+pendingFiles.length+' file(s) attached':''):(pendingFiles.length?'📎 '+pendingFiles.map(f=>f.name).join(', '):''); };
+        $('dictateBtn').onclick = () => {
+            const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+            if(!Speech){alert('Speech recognition is not supported in this browser. Try Chrome or Edge.');return;}
+            if(dictation){dictation.stop();dictation=null;$('dictateBtn').classList.remove('active');return;}
+            dictation=new Speech(); dictation.lang='en-AU'; dictation.interimResults=true; dictation.continuous=false;
+            dictation.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;inputEl.value=(inputEl.value+' '+t).trim();};
+            dictation.onerror=()=>{dictation=null;$('dictateBtn').classList.remove('active');}; dictation.onend=()=>{dictation=null;$('dictateBtn').classList.remove('active');};
+            $('dictateBtn').classList.add('active'); dictation.start();
+        };
+        document.addEventListener('keydown',e=>{
+            const tag=(document.activeElement?.tagName||'').toLowerCase(); const typingInField=tag==='input'||tag==='textarea';
+            if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('historySearch').focus();$('historySearch').select();}
+            if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='o'){e.preventDefault();createChat();}
+            if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();send();}
+            if(e.key==='Escape'&&dictation){dictation.stop();dictation=null;}
+            if(!typingInField&&(e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='e'){e.preventDefault();exportConversation();}
+        });
         $('clearBtn').onclick = () => { history = []; const c = chats.find(c => c.id === activeChatId); if (c) { c.messages = []; c.title = 'New chat'; c.updatedAt = Date.now(); } saveChats(); render(); };
         $('menuBtn').onclick = () => $('sidebar').classList.toggle('open');
 
