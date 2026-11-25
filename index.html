@@ -314,6 +314,8 @@
             max-width: 800px;
             margin: 0 auto;
             display: flex;
+            flex-wrap: wrap;
+            align-items: center;
             gap: 8px;
             background: var(--panel);
             border: 1px solid var(--border);
@@ -323,6 +325,7 @@
 
         .composer textarea {
             flex: 1;
+            min-width: 100px;
             resize: none;
             border: 0;
             background: transparent;
@@ -474,8 +477,7 @@
             color: #ffb4b4;
         }
 
-        /* ---------------------------- voice mode ---------------------------- */
-        .composer .mic-btn {
+        .composer .composer-action {
             width: 40px;
             height: 40px;
             flex: none;
@@ -488,126 +490,46 @@
             place-items: center;
             font-size: 17px;
         }
+        .composer .composer-action:hover { background: #20283a; }
 
-        .composer .mic-btn:hover {
-            background: #20283a;
-        }
-
-        .composer .mic-btn.live {
-            background: #e5484d;
-            border-color: #e5484d;
-            animation: micpulse 1.2s infinite;
-        }
-
-        @keyframes micpulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, .55); }
-            50% { box-shadow: 0 0 0 9px rgba(229, 72, 77, 0); }
-        }
-
-        .voice-bg {
-            position: fixed;
-            inset: 0;
-            z-index: 60;
-            display: none;
-            place-items: center;
-            text-align: center;
-            color: var(--text);
-            background: radial-gradient(circle at 50% 28%, #1b1546 0, #07090f 62%);
-        }
-
-        .voice-bg.open {
-            display: grid;
-        }
-
-        .voice {
-            width: min(560px, 92vw);
-            padding: 26px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-        }
-
-        .orb {
-            width: 168px;
-            height: 168px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: radial-gradient(circle at 35% 30%, #8f7bff, #5b3df0 55%, #2a1a6b);
-            box-shadow: 0 0 60px rgba(124, 92, 255, .45);
-            transition: transform .25s ease, box-shadow .25s ease;
-        }
-
-        .orb:hover {
-            transform: scale(1.03);
-        }
-
-        .orb.listening {
-            animation: breathe 1.6s ease-in-out infinite;
-            box-shadow: 0 0 85px rgba(124, 92, 255, .85);
-        }
-
-        .orb.thinking {
-            background: radial-gradient(circle at 35% 30%, #8ef0b0, #22c55e 55%, #14532d);
-            animation: spin 1.5s linear infinite;
-            box-shadow: 0 0 70px rgba(34, 197, 94, .6);
-        }
-
-        .orb.speaking {
-            background: radial-gradient(circle at 35% 30%, #a7dcff, #3b82f6 55%, #1e3a8a);
-            animation: breathe .65s ease-in-out infinite;
-            box-shadow: 0 0 95px rgba(90, 200, 255, .8);
-        }
-
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .voice-state {
-            font-size: 15px;
+        .code-copy {
+            float: right;
+            border: 1px solid var(--border2);
+            background: var(--panel2);
             color: var(--muted);
-            letter-spacing: .3px;
+            border-radius: 7px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            margin: -4px -4px 6px 10px;
         }
-
-        .voice-caption {
-            min-height: 54px;
-            max-width: 520px;
-            font-size: 15px;
-            line-height: 1.55;
+        .code-copy:hover { color: #fff; border-color: var(--accent); }
+        .file-attachments { display:flex; flex-wrap:wrap; gap:9px; margin-top:10px; }
+        .file-attachment {
+            position:relative; display:flex; align-items:center; gap:10px;
+            min-width:170px; max-width:260px; min-height:64px; padding:9px 11px;
+            border:1px solid var(--border2); border-radius:14px;
+            background:rgba(255,255,255,.035); color:var(--text);
         }
-
-        .voice-caption .you {
-            color: var(--accent2);
+        .file-attachment .file-icon {
+            width:34px; height:38px; flex:none; display:grid; place-items:center;
+            border:1px solid var(--border2); border-radius:8px; color:var(--muted); font-size:18px;
         }
-
-        .voice-controls {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
+        .file-attachment .file-meta { min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .file-attachment .file-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }
+        .file-attachment .file-type { color:var(--muted); font-size:11px; }
+        .file-attachment.image-file { min-width:0; width:112px; height:112px; padding:0; overflow:hidden; }
+        .file-attachment.image-file img { width:100%; height:100%; object-fit:cover; display:block; }
+        .attachment-tray { display:flex; flex-wrap:wrap; gap:8px; width:100%; padding:2px 2px 5px; }
+        .attachment-tray:empty { display:none; }
+        .attachment-tray .file-attachment { min-height:56px; }
+        .attachment-tray .file-attachment.image-file { width:88px; height:88px; }
+        .attachment-remove {
+            position:absolute; top:-6px; right:-6px; width:21px; height:21px;
+            border:1px solid var(--border2); border-radius:50%; background:#111827;
+            color:#fff; font-size:13px; line-height:1; cursor:pointer; display:grid; place-items:center;
         }
-
-        .voice-controls .btn {
-            width: auto;
-        }
-
-        .voice select {
-            background: #0b0f17;
-            border: 1px solid var(--border);
-            color: var(--text);
-            border-radius: 9px;
-            padding: 8px;
-            font-size: 12px;
-            max-width: 100%;
-        }
-
-        .voice-note {
-            color: var(--dim);
-            font-size: 12px;
-            min-height: 16px;
-            max-width: 460px;
-        }
-
-
+        .file-attachment.image-file .file-meta { display:none; }
         .history-tools { display:flex; gap:6px; flex-wrap:wrap; }
         .history-search { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:9px; font-size:12px; }
         .mini-btn { border:1px solid var(--border2); background:var(--panel2); color:#dbe1ed; border-radius:8px; padding:6px 8px; cursor:pointer; font-size:11px; }
@@ -675,34 +597,16 @@
             <div id="messages"></div>
             <div class="composer">
                 <form id="form">
-                    <input id="fileInput" type="file" hidden multiple accept=".txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.java,.c,.cpp,.h,.xml,.yaml,.yml,.log,.sh,.sql">
-                    <button type="button" class="mic-btn" id="attachBtn" title="Attach text or code files">＋</button>
+                    <div id="attachmentTray" class="attachment-tray"></div>
+                    <input id="fileInput" type="file" hidden multiple accept="image/*,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.html,.css,.py,.java,.c,.cpp,.h,.xml,.yaml,.yml,.log,.sh,.sql">
+                    <button type="button" class="composer-action" id="attachBtn" title="Attach files">＋</button>
                     <textarea id="input" rows="1" maxlength="12000" placeholder="Message Aleph AI…"></textarea>
-                    <button type="button" class="mic-btn" id="codeModeBtn" title="Toggle code mode">{ }</button>
-                    <button type="button" class="mic-btn" id="dictateBtn" title="Dictate message">🎤</button>
-                    <button type="button" class="mic-btn" id="micBtn" title="Voice mode">🎙</button>
                     <button type="submit" id="send">↑</button>
                 </form>
                 <div id="attachmentNote" class="mode-note"></div>
                 <div class="hint">Enter to send · Shift+Enter for a new line · Ctrl+K search · Ctrl+Shift+O new chat</div>
             </div>
         </main>
-    </div>
-
-    <div class="voice-bg" id="voiceBg">
-        <div class="voice">
-            <div class="orb" id="orb" title="Tap to talk"></div>
-            <div class="voice-state" id="voiceState">Tap the orb to talk</div>
-            <div class="voice-caption" id="voiceCaption"></div>
-            <div class="voice-controls">
-                <button class="btn" id="voiceStart" type="button">🎙 Talk</button>
-                <button class="btn" id="voiceMute" type="button">🔊 Sound on</button>
-                <button class="btn" id="voiceHands" type="button">🔁 Hands-free: on</button>
-                <button class="btn" id="voiceClose" type="button">✕ End</button>
-            </div>
-            <select id="voicePick" title="Voice"></select>
-            <div class="voice-note" id="voiceNote"></div>
-        </div>
     </div>
 
     <div class="modal-bg" id="settingsModal">
@@ -760,9 +664,7 @@
         let typing = false;
         let temporaryMode = false;
         let temporaryHistory = [];
-        let codeMode = false;
         let pendingFiles = [];
-        let dictation = null;
 
         const $ = id => document.getElementById(id);
         const messagesEl = $('messages');
@@ -807,7 +709,8 @@
             renderChatList();
         }
         function chatTitle(messages) {
-            const first = messages.find(m => m.role === 'user')?.content || 'New chat';
+            const firstMessage = messages.find(m => m.role === 'user');
+            const first = firstMessage?.displayContent || firstMessage?.content || 'New chat';
             const clean = first.replace(/\s+/g, ' ');
             return clean.slice(0, 38) + (clean.length > 38 ? '…' : '');
         }
@@ -873,7 +776,47 @@
                 bub.className = 'bubble' + (m.role === 'user' ? ' user' : '') + (m.role === 'error' ? ' err' : '');
                 if (m.role === 'user') bub.textContent = m.content;
                 else bub.innerHTML = renderMarkdown(m.content);
-                if (m.files?.length) { const files = document.createElement('div'); files.className='file-chip'; files.textContent='📎 '+m.files.map(f=>f.name).join(', '); bub.appendChild(files); }
+                if (m.role === 'user') {
+                    const visibleText = m.displayContent !== undefined ? m.displayContent : m.content;
+                    bub.textContent = visibleText || '';
+                } else {
+                    bub.querySelectorAll('pre').forEach(pre => {
+                        const code = pre.querySelector('code');
+                        if (!code) return;
+                        const copyButton = document.createElement('button');
+                        copyButton.type = 'button';
+                        copyButton.className = 'code-copy';
+                        copyButton.textContent = 'Copy code';
+                        copyButton.addEventListener('click', async () => {
+                            try {
+                                await navigator.clipboard.writeText(code.textContent);
+                                copyButton.textContent = 'Copied!';
+                                setTimeout(() => copyButton.textContent = 'Copy code', 1400);
+                            } catch (err) {
+                                copyButton.textContent = 'Copy unavailable';
+                            }
+                        });
+                        pre.insertBefore(copyButton, code);
+                    });
+                }
+                if (m.files?.length) {
+                    const files = document.createElement('div'); files.className='file-attachments';
+                    m.files.forEach(file => {
+                        const tile = document.createElement('div');
+                        tile.className = 'file-attachment' + (file.kind === 'image' && file.preview ? ' image-file' : '');
+                        if (file.kind === 'image' && file.preview) {
+                            const image = document.createElement('img'); image.src = file.preview; image.alt = file.name; tile.appendChild(image);
+                        } else {
+                            const icon = document.createElement('div'); icon.className='file-icon'; icon.textContent='▤'; tile.appendChild(icon);
+                            const meta = document.createElement('div'); meta.className='file-meta';
+                            const name = document.createElement('span'); name.className='file-name'; name.textContent=file.name;
+                            const type = document.createElement('span'); type.className='file-type'; type.textContent=file.typeLabel || (file.name.split('.').pop() || 'File').toUpperCase() + ' file';
+                            meta.append(name,type); tile.appendChild(meta);
+                        }
+                        files.appendChild(tile);
+                    });
+                    bub.appendChild(files);
+                }
                 row.appendChild(av); row.appendChild(bub);
                 if (m.role === 'user' || m.role === 'assistant') {
                     const actions=document.createElement('div'); actions.className='msg-actions';
@@ -958,14 +901,16 @@
         // Returns the assistant reply (or null on failure).
         async function sendText(rawText) {
             const text = (rawText || '').trim();
-            if (!text || typing) return null;
+            if ((!text && !pendingFiles.length) || typing) return null;
 
             if (!activeChatId && !temporaryMode) createChat();
-            const fileContext = pendingFiles.map(f => `\n\n[Attached file: ${f.name}]\n${f.content}`).join('');
+            const fileContext = pendingFiles.map(f => f.kind === 'image'
+                ? `\n\n[The user attached an image named ${f.name}. The image is displayed in the conversation, but this chat server currently accepts text-only message content.]`
+                : `\n\n[Attached file: ${f.name}]\n${f.content}`).join('');
             const fullText = text + fileContext;
-            const messageFiles = pendingFiles.map(f => ({name:f.name}));
-            pendingFiles = []; $('attachmentNote').textContent = '';
-            history.push({ role: 'user', content: fullText, files: messageFiles });
+            const messageFiles = pendingFiles.map(f => ({name:f.name,kind:f.kind,typeLabel:f.typeLabel,preview:f.preview || null}));
+            pendingFiles = []; $('attachmentNote').textContent = ''; renderPendingFiles();
+            history.push({ role: 'user', content: fullText, displayContent:text, files: messageFiles });
             const active = chats.find(c => c.id === activeChatId);
             if (active) active.title = chatTitle(history);
             saveChats();
@@ -974,7 +919,7 @@
 
             const payload = {
                 model,
-                messages: [...(codeMode ? [{role:'system',content:'You are in Code Mode. Prioritize programming help, provide complete runnable code when appropriate, use fenced code blocks with language labels, explain important changes, and avoid unrelated prose.'}] : []), ...history.map(m => ({
+                messages: [...history.map(m => ({
                     role: m.role === 'error' ? 'assistant' : m.role,
                     content: m.content
                 }))]
@@ -1008,7 +953,7 @@
 
         function send() {
             const text = inputEl.value.trim();
-            if (!text || typing) return;
+            if ((!text && !pendingFiles.length) || typing) return;
             inputEl.value = '';
             inputEl.style.height = 'auto';
             return sendText(text);
@@ -1016,7 +961,7 @@
 
         function editMessage(index) {
             const msg=history[index]; if (!msg || msg.role!=='user' || typing) return;
-            const edited=prompt('Edit your message:', msg.content); if (edited===null || !edited.trim()) return;
+            const edited=prompt('Edit your message:', msg.displayContent !== undefined ? msg.displayContent : msg.content); if (edited===null || !edited.trim()) return;
             history=history.slice(0,index);
             if (temporaryMode) temporaryHistory=history; else saveChats();
             render(); sendText(edited.trim());
@@ -1025,7 +970,7 @@
             if (typing || index<0 || history[index]?.role!=='assistant') return;
             history=history.slice(0,index); if (temporaryMode) temporaryHistory=history; else saveChats();
             typing=true; render();
-            const payload={model,messages:[...(codeMode?[{role:'system',content:'You are in Code Mode. Prioritize programming help and use clear fenced code blocks.'}]:[]),...history.map(m=>({role:m.role==='error'?'assistant':m.role,content:m.content}))]};
+            const payload={model,messages:history.map(m=>({role:m.role==='error'?'assistant':m.role,content:m.content}))};
             try { const data=await callServer(payload); history.push({role:'assistant',content:data.choices?.[0]?.message?.content||'(no response)'}); setStatus('ok','Online · '+hostOf(baseUrl())); }
             catch(e){history.push({role:'error',content:'Error: '+e.message});setStatus('off','Connection failed');}
             typing=false; if(temporaryMode) temporaryHistory=history; else saveChats(); render();
@@ -1040,12 +985,71 @@
             else {alert('Choose txt, md, or json.');return;}
             const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='aleph-chat.'+ext; a.click(); URL.revokeObjectURL(url);
         }
-        async function handleFiles(files){
-            const allowed=/\.(txt|md|csv|json|js|ts|jsx|tsx|html|css|py|java|c|cpp|h|xml|yaml|yml|log|sh|sql)$/i;
-            for(const file of files){ if(!allowed.test(file.name)){alert('Unsupported file: '+file.name+'\nFor now, upload text, document, or code files (TXT, MD, CSV, JSON, JS, HTML, CSS, PY, etc.).');continue;} if(file.size>500000){alert(file.name+' is over 500 KB. Please use a smaller file.');continue;} const content=await file.text(); pendingFiles.push({name:file.name,content}); }
-            $('attachmentNote').textContent=pendingFiles.length?'📎 '+pendingFiles.map(f=>f.name).join(', '):'';
+        function renderPendingFiles() {
+            const tray = $('attachmentTray');
+            if (!tray) return;
+            tray.innerHTML = '';
+            pendingFiles.forEach((file, index) => {
+                const tile = document.createElement('div');
+                tile.className = 'file-attachment' + (file.kind === 'image' && file.preview ? ' image-file' : '');
+                if (file.kind === 'image' && file.preview) {
+                    const image = document.createElement('img'); image.src = file.preview; image.alt = file.name; tile.appendChild(image);
+                } else {
+                    const icon = document.createElement('div'); icon.className='file-icon'; icon.textContent='▤'; tile.appendChild(icon);
+                    const meta = document.createElement('div'); meta.className='file-meta';
+                    const name = document.createElement('span'); name.className='file-name'; name.textContent=file.name;
+                    const type = document.createElement('span'); type.className='file-type'; type.textContent=file.typeLabel || 'File';
+                    meta.append(name,type); tile.appendChild(meta);
+                }
+                const remove = document.createElement('button');
+                remove.type='button'; remove.className='attachment-remove'; remove.textContent='×'; remove.title='Remove '+file.name;
+                remove.addEventListener('click', () => {
+                    pendingFiles.splice(index,1);
+                    renderPendingFiles();
+                    $('attachmentNote').textContent = pendingFiles.length ? pendingFiles.length+' attachment(s) ready' : '';
+                });
+                tile.appendChild(remove); tray.appendChild(tile);
+            });
         }
 
+        async function readImagePreview(file) {
+            if (window.createImageBitmap) {
+                const bitmap = await createImageBitmap(file);
+                const scale = Math.min(1, 360 / Math.max(bitmap.width, bitmap.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                bitmap.close?.();
+                return canvas.toDataURL('image/jpeg', 0.72);
+            }
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        async function handleFiles(files){
+            const allowed=/\.(txt|md|csv|json|js|ts|jsx|tsx|html|css|py|java|c|cpp|h|xml|yaml|yml|log|sh|sql)$/i;
+            for(const file of files){
+                if(file.size>5000000){alert(file.name+' is over 5 MB. Please choose a smaller file.');continue;}
+                if(file.type.startsWith('image/')){
+                    if(!/^image\/(png|jpe?g|gif|webp|bmp)$/i.test(file.type)){alert('That image format is not supported. Try PNG, JPG, GIF or WEBP.');continue;}
+                    try {
+                        const preview=await readImagePreview(file);
+                        pendingFiles.push({name:file.name,typeLabel:'Image',kind:'image',preview,content:''});
+                    } catch(e){alert('Could not read '+file.name+'.');}
+                    continue;
+                }
+                if(!allowed.test(file.name)){alert('Unsupported file: '+file.name+'\\nUpload images or text/code files (TXT, MD, CSV, JSON, JS, HTML, CSS, PY, etc.).');continue;}
+                if(file.size>500000){alert(file.name+' is over 500 KB. Please use a smaller text file.');continue;}
+                const content=await file.text();
+                pendingFiles.push({name:file.name,typeLabel:(file.name.split('.').pop()||'File').toUpperCase()+' file',kind:'text',content});
+            }
+            renderPendingFiles();
+            $('attachmentNote').textContent=pendingFiles.length ? pendingFiles.length+' attachment(s) ready — they will appear in your message' : '';
+        }
         /* --------------------------- UI events --------------------------- */
 
         formEl.addEventListener('submit', e => {
@@ -1069,22 +1073,11 @@
         $('exportBtn').onclick = exportConversation;
         $('attachBtn').onclick = () => $('fileInput').click();
         $('fileInput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
-        $('codeModeBtn').onclick = () => { codeMode=!codeMode; $('codeModeBtn').classList.toggle('active',codeMode); $('codeModeBtn').title=codeMode?'Code Mode is on':'Code Mode is off'; $('attachmentNote').textContent=codeMode?'Code Mode enabled'+(pendingFiles.length?' · '+pendingFiles.length+' file(s) attached':''):(pendingFiles.length?'📎 '+pendingFiles.map(f=>f.name).join(', '):''); };
-        $('dictateBtn').onclick = () => {
-            const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
-            if(!Speech){alert('Speech recognition is not supported in this browser. Try Chrome or Edge.');return;}
-            if(dictation){dictation.stop();dictation=null;$('dictateBtn').classList.remove('active');return;}
-            dictation=new Speech(); dictation.lang='en-AU'; dictation.interimResults=true; dictation.continuous=false;
-            dictation.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;inputEl.value=(inputEl.value+' '+t).trim();};
-            dictation.onerror=()=>{dictation=null;$('dictateBtn').classList.remove('active');}; dictation.onend=()=>{dictation=null;$('dictateBtn').classList.remove('active');};
-            $('dictateBtn').classList.add('active'); dictation.start();
-        };
         document.addEventListener('keydown',e=>{
             const tag=(document.activeElement?.tagName||'').toLowerCase(); const typingInField=tag==='input'||tag==='textarea';
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('historySearch').focus();$('historySearch').select();}
             if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='o'){e.preventDefault();createChat();}
             if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();send();}
-            if(e.key==='Escape'&&dictation){dictation.stop();dictation=null;}
             if(!typingInField&&(e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='e'){e.preventDefault();exportConversation();}
         });
         $('clearBtn').onclick = () => { history = []; const c = chats.find(c => c.id === activeChatId); if (c) { c.messages = []; c.title = 'New chat'; c.updatedAt = Date.now(); } saveChats(); render(); };
@@ -1122,423 +1115,6 @@
         };
         $('settingsModal').addEventListener('click', e => {
             if (e.target.id === 'settingsModal') $('settingsModal').classList.remove('open');
-        });
-
-        /* ---------------------------- voice mode ---------------------------- */
-
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const synth = window.speechSynthesis;
-        const canSR = !!SR;
-
-        let voiceActive = false;
-        let vState = 'idle';
-        let recog = null;
-        let vInterim = '';
-        let vTurnFinal = '';
-        let vCommitTimer = null;
-        let vCommitting = false;
-        let vMuted = false;
-        let vHandsFree = localStorage.getItem('aleph-handsfree') !== 'off';
-        let vVoice = null;
-        let vRestartTimer = null;
-        let vSpeakDone = true;
-        let vRecording = false;
-        let vRecorder = null;
-        let vChunks = [];
-        let micPermState = 'unknown';  // granted | denied | prompt | unknown
-        let micError = null;           // last recorder permission/device error
-        let vUseRecorder = !canSR;     // record+transcribe instead of live SR
-
-        // Turn markdown into something pleasant to listen to.
-        function speakable(md) {
-            const fence = new RegExp(BT + BT + BT + '[\\s\\S]*?' + BT + BT + BT, 'g');
-            const inline = new RegExp(BT + '([^' + BT + ']+)' + BT, 'g');
-            return String(md)
-                .replace(fence, ' (code block) ')
-                .replace(inline, '$1')
-                .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s)]+)\)/g, '$1')
-                .replace(/\*\*([^*]+)\*\*/g, '$1')
-                .replace(/^[ \t]*[#>*\-][ \t]*/gm, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        function loadVoices() {
-            if (!synth) return;
-            const all = synth.getVoices() || [];
-            const en = all.filter(v => /^en/i.test(v.lang || ''));
-            const list = en.length ? en : all;
-            const sel = $('voicePick');
-            sel.innerHTML = '';
-            list.forEach(v => {
-                const o = document.createElement('option');
-                o.value = v.name;
-                o.textContent = v.name + (v.lang ? ' — ' + v.lang : '');
-                sel.appendChild(o);
-            });
-            if (!list.length) {
-                const o = document.createElement('option');
-                o.value = '';
-                o.textContent = 'System default';
-                sel.appendChild(o);
-            }
-            const saved = localStorage.getItem('aleph-voice');
-            const pick = list.find(v => v.name === saved) ||
-                list.find(v => /natural|google|samantha|aria|zira|jenny/i.test(v.name)) ||
-                list[0] || null;
-            vVoice = pick;
-            if (pick) sel.value = pick.name;
-        }
-
-        if (synth) {
-            loadVoices();
-            synth.onvoiceschanged = loadVoices;
-        }
-
-        function setVoiceState(state, caption) {
-            vState = state;
-            $('orb').className = 'orb' + (state === 'idle' ? '' : ' ' + state);
-            $('voiceState').textContent = ({
-                idle: vUseRecorder ? 'Tap “Record” to speak' : 'Tap the orb to talk',
-                listening: 'Listening…',
-                thinking: 'Thinking…',
-                speaking: 'Speaking…'
-            })[state] || '';
-            if (caption !== undefined) $('voiceCaption').innerHTML = caption;
-        }
-
-        function scheduleListen(ms) {
-            clearTimeout(vRestartTimer);
-            vRestartTimer = setTimeout(() => { if (voiceActive) startListening(); }, ms);
-        }
-
-        // Turn off the microphone only after we know the real reason.
-        function micHelp(err) {
-            const name = (err && err.name) || (typeof err === 'string' ? err : '');
-            const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
-            if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'not-allowed' || name === 'service-not-allowed') {
-                if (!window.isSecureContext) return 'Speech input needs HTTPS. Open the secure (https://) version of this site.';
-                if (framed) return 'This page is inside a frame that is not allowed to use the microphone. Open the site in its own browser tab and try again.';
-                return 'Microphone is blocked for this site. Click the padlock icon in the address bar, set Microphone to “Allow”, then reload.';
-            }
-            if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'No microphone found. Plug one in or pick an input device in your OS settings.';
-            if (name === 'NotReadableError' || name === 'TrackStartError') return 'Your microphone is busy in another app. Close it and try again.';
-            if (name === 'audio-capture') return 'No microphone available for speech recognition.';
-            if (!window.isSecureContext) return 'Speech input needs HTTPS. Open the secure (https://) version of this site.';
-            return 'Microphone unavailable' + (name ? ' (' + name + ')' : '') + '.';
-        }
-
-        // Non-intrusive permission check. Deliberately does NOT call
-        // getUserMedia: grabbing and releasing the mic before speech
-        // recognition starts is what broke live speech on the hosted site.
-        async function checkMicPermission() {
-            try {
-                if (navigator.permissions && navigator.permissions.query) {
-                    const status = await navigator.permissions.query({ name: 'microphone' });
-                    micPermState = status.state;  // 'granted' | 'denied' | 'prompt'
-                }
-            } catch (e) {
-                micPermState = 'unknown';
-            }
-            return micPermState;
-        }
-
-        function voiceDiag() {
-            let framed = 'unknown';
-            try { framed = (window.self !== window.top) ? 'yes' : 'no'; } catch (e) { framed = 'blocked'; }
-            const err = micError ? (micError.name || 'Error') + ': ' + (micError.message || '') : 'none';
-            return '(secure=' + (window.isSecureContext ? 'yes' : 'no') +
-                ', policy=' + (micPolicyAllowed() ? 'allowed' : 'BLOCKED') +
-                ', framed=' + framed +
-                ', mediaDevices=' + (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'yes' : 'no') +
-                ', perm=' + micPermState +
-                ', err=' + err + ')';
-        }
-
-        // Some hosts (Cloudflare included) can send a Permissions-Policy header
-        // such as `microphone=()`, which disables the mic for the whole document
-        // and OVERRIDES the normal browser permission. That blocks both live
-        // speech and recording, and cannot be fixed from inside the page.
-        function micPolicyAllowed() {
-            try {
-                const fp = document.permissionsPolicy || document.featurePolicy;
-                if (fp && typeof fp.allowsFeature === 'function') return fp.allowsFeature('microphone');
-            } catch (e) { /* not supported */ }
-            return true;  // unknown — assume allowed
-        }
-
-        // Best explanation we can give for why live speech was refused.
-        function blockedReason() {
-            let framed = false;
-            try { framed = window.self !== window.top; } catch (e) { framed = true; }
-            if (!micPolicyAllowed()) return 'The server sends a Permissions-Policy header that blocks the microphone for this whole page, which overrides the browser permission. The host must send "Permissions-Policy: microphone=(self)" — add a _headers file.';
-            if (!window.isSecureContext) return 'Speech input needs HTTPS — open the secure (https://) version of this site.';
-            if (framed) return 'This page is inside a frame that is not allowed to use the microphone. Open the site in its own browser tab.';
-            if (micPermState === 'denied') return 'Microphone is blocked for this site. Click the padlock icon in the address bar, set Microphone to “Allow”, then reload.';
-            if (micPermState === 'granted') return 'Microphone is allowed, but the browser refused its live speech service. Record mode still works.';
-            return 'Microphone permission was not granted. Allow it and try again.';
-        }
-
-        function resetTurn() {
-            vTurnFinal = '';
-            vInterim = '';
-            vCommitting = false;
-            clearTimeout(vCommitTimer);
-        }
-
-        function commitTurn() {
-            if (vCommitting) return;
-            const said = vTurnFinal.trim();
-            if (!said) return;
-            vCommitting = true;
-            clearTimeout(vCommitTimer);
-            resetTurn();
-            try { if (recog) recog.stop(); } catch (e) {}
-            handleUtterance(said);
-        }
-
-        function ensureRecog() {
-            if (recog) return recog;
-            recog = new SR();
-            recog.lang = 'en-US';
-            recog.interimResults = true;
-            recog.continuous = true;   // stay open across pauses
-            recog.maxAlternatives = 1;
-
-            recog.onstart = () => {
-                if (voiceActive && vState === 'listening') $('voiceNote').textContent = '';
-            };
-
-            recog.onresult = (e) => {
-                let interim = '';
-                for (let i = e.resultIndex; i < e.results.length; i++) {
-                    const t = e.results[i][0].transcript;
-                    if (e.results[i].isFinal) vTurnFinal += t;
-                    else interim += t;
-                }
-                vInterim = interim;
-                const shown = (vTurnFinal + ' ' + vInterim).trim();
-                $('voiceCaption').innerHTML = '<span class="you">You:</span> ' + escapeHtml(shown);
-                clearTimeout(vCommitTimer);
-                // Send once the user has been quiet for a moment.
-                if (vTurnFinal.trim()) vCommitTimer = setTimeout(commitTurn, 1300);
-            };
-
-            recog.onerror = (e) => {
-                const err = (e && e.error) || '';
-                if (err === 'no-speech' || err === 'aborted') return;  // onend keeps the loop alive
-                if (err === 'network') {
-                    $('voiceNote').textContent = 'Speech service unreachable — retrying…';
-                    scheduleListen(900);
-                    return;
-                }
-                if (err === 'audio-capture') {
-                    $('voiceNote').textContent = micHelp('audio-capture');
-                    vSpeakDone = true;
-                    vUseRecorder = true;
-                    $('voiceStart').textContent = '⏺ Record';
-                    setVoiceState('idle');
-                    return;
-                }
-                if (err === 'not-allowed' || err === 'service-not-allowed') {
-                    vSpeakDone = true;
-                    vUseRecorder = true;
-                    $('voiceStart').textContent = '⏺ Record';
-                    $('voiceNote').textContent = blockedReason() + ' ' + voiceDiag();
-                    setVoiceState('idle');
-                }
-            };
-
-            recog.onend = () => {
-                if (!voiceActive || vState !== 'listening') return;
-                // Use interim text too, in case the engine never finalised it.
-                const pending = (vTurnFinal + ' ' + vInterim).trim();
-                if (pending) {
-                    vTurnFinal = pending;
-                    commitTurn();
-                    return;
-                }
-                scheduleListen(300);  // heard nothing yet — keep listening
-            };
-
-            return recog;
-        }
-
-        function startListening() {
-            if (!voiceActive) return;
-            if (synth) { try { synth.cancel(); } catch (e) {} }
-            vSpeakDone = true;
-            if (vUseRecorder) { startRecording(); return; }
-            const r = ensureRecog();
-            resetTurn();
-            try { r.start(); } catch (e) { /* already running */ }
-            setVoiceState('listening', '<span class="you">You:</span> …');
-            $('voiceStart').textContent = '⏸ Pause';
-        }
-
-        function stopListening() {
-            clearTimeout(vRestartTimer);
-            resetTurn();
-            if (recog) { try { recog.stop(); } catch (e) {} }
-            $('voiceStart').textContent = vUseRecorder ? '⏺ Record' : '🎙 Talk';
-        }
-
-        async function handleUtterance(text) {
-            setVoiceState('thinking', '<span class="you">You:</span> ' + escapeHtml(text) + '<br><br>ℵ₀: …');
-            const reply = await sendText(text);
-            if (!voiceActive) return;
-            const shown = reply || '(could not reach the server)';
-            $('voiceCaption').innerHTML = '<span class="you">You:</span> ' + escapeHtml(text) +
-                '<br><br>ℵ₀: ' + (reply ? renderMarkdown(reply) : escapeHtml(shown));
-            speak(shown);
-        }
-
-        function speak(text) {
-            if (!voiceActive) return;
-            if (!synth || vMuted) { afterSpeak(); return; }
-            vSpeakDone = false;
-            setVoiceState('speaking');
-            try { synth.cancel(); } catch (e) {}
-            const u = new SpeechSynthesisUtterance(speakable(text));
-            if (vVoice) u.voice = vVoice;
-            u.rate = 1;
-            u.pitch = 1;
-            u.volume = 1;
-            const done = () => { if (vSpeakDone) return; vSpeakDone = true; afterSpeak(); };
-            u.onend = done;
-            u.onerror = done;
-            synth.speak(u);
-        }
-
-        function afterSpeak() {
-            if (!voiceActive) return;
-            if (vHandsFree) scheduleListen(350);
-            else setVoiceState('idle', $('voiceCaption').innerHTML);
-        }
-
-        async function enterVoice() {
-            if (voiceActive) return;
-            voiceActive = true;
-            $('voiceBg').classList.add('open');
-            $('micBtn').classList.add('live');
-            setVoiceState('idle', '');
-
-            if (!canSR) {
-                vUseRecorder = true;
-                $('voiceNote').textContent = 'Live speech-to-text is unavailable in this browser — tap “Record”, speak, then tap again to send.';
-                return;
-            }
-
-            // Permission lookup is async but non-blocking; start listening
-            // immediately so the gesture is still valid for speech recognition.
-            checkMicPermission();
-            startListening();
-        }
-
-        function exitVoice() {
-            voiceActive = false;
-            $('voiceBg').classList.remove('open');
-            $('micBtn').classList.remove('live');
-            clearTimeout(vRestartTimer);
-            stopListening();
-            stopRecording();
-            if (synth) { try { synth.cancel(); } catch (e) {} }
-            vSpeakDone = true;
-            vUseRecorder = !canSR;   // retry live speech next time
-            setVoiceState('idle');
-        }
-
-        /* Fallback for browsers without SpeechRecognition: record, then
-           transcribe via the server (Groq Whisper) at /api/transcribe. */
-        function startRecording() {
-            if (vRecording) { stopRecording(); return; }
-            if (!navigator.mediaDevices || !window.MediaRecorder) {
-                $('voiceNote').textContent = 'Voice input is not supported in this browser. Try Chrome, Edge, or Safari.';
-                return;
-            }
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                vChunks = [];
-                vRecorder = new MediaRecorder(stream);
-                vRecorder.ondataavailable = e => { if (e.data && e.data.size) vChunks.push(e.data); };
-                vRecorder.onstop = () => {
-                    stream.getTracks().forEach(t => t.stop());
-                    const blob = new Blob(vChunks, { type: (vRecorder && vRecorder.mimeType) || 'audio/webm' });
-                    transcribeBlob(blob);
-                };
-                vRecorder.start();
-                vRecording = true;
-                $('voiceStart').textContent = '⏹ Stop';
-                setVoiceState('listening', 'Recording… tap Stop when you are done.');
-            }).catch(err => {
-                micError = err;
-                $('voiceNote').textContent = micHelp(err);
-            });
-        }
-
-        function stopRecording() {
-            if (vRecorder && vRecording) { try { vRecorder.stop(); } catch (e) {} }
-            vRecording = false;
-            $('voiceStart').textContent = '🎙 Talk';
-        }
-
-        async function transcribeBlob(blob) {
-            setVoiceState('thinking', 'Transcribing…');
-            try {
-                const fd = new FormData();
-                fd.append('file', blob, 'audio.webm');
-                fd.append('model', 'whisper-large-v3-turbo');
-                const r = await fetch(baseUrl() + '/api/transcribe', { method: 'POST', body: fd });
-                const d = await r.json();
-                if (!r.ok) throw new Error((d.error && d.error.message) || 'Transcription failed');
-                const text = (d.text || '').trim();
-                if (text) handleUtterance(text);
-                else setVoiceState('idle', 'Didn’t catch that — try again.');
-            } catch (e) {
-                setVoiceState('idle', 'Error: ' + e.message);
-            }
-        }
-
-        /* Voice controls */
-        $('voicePick').onchange = () => {
-            const name = $('voicePick').value;
-            localStorage.setItem('aleph-voice', name);
-            vVoice = (synth ? synth.getVoices().find(v => v.name === name) : null) || null;
-        };
-        $('voiceStart').onclick = () => {
-            if (!voiceActive) return;
-            if (vUseRecorder) { startRecording(); return; }
-            if (vState === 'listening') { stopListening(); setVoiceState('idle', $('voiceCaption').innerHTML); }
-            else startListening();
-        };
-        $('voiceMute').onclick = () => {
-            vMuted = !vMuted;
-            $('voiceMute').textContent = vMuted ? '🔇 Muted' : '🔊 Sound on';
-            if (vMuted && synth) { try { synth.cancel(); } catch (e) {} vSpeakDone = true; }
-        };
-        $('voiceHands').onclick = () => {
-            vHandsFree = !vHandsFree;
-            localStorage.setItem('aleph-handsfree', vHandsFree ? 'on' : 'off');
-            $('voiceHands').textContent = '🔁 Hands-free: ' + (vHandsFree ? 'on' : 'off');
-        };
-        $('voiceClose').onclick = exitVoice;
-        $('micBtn').onclick = enterVoice;
-        $('orb').onclick = () => {
-            if (!voiceActive) return;
-            if (vUseRecorder) { startRecording(); return; }
-            if (vState === 'speaking' || vState === 'thinking') {
-                if (synth) { try { synth.cancel(); } catch (e) {} }
-                vSpeakDone = true;
-                startListening();
-            } else if (vState === 'listening') {
-                stopListening();
-                setVoiceState('idle', $('voiceCaption').innerHTML);
-            } else {
-                startListening();
-            }
-        };
-        $('voiceHands').textContent = '🔁 Hands-free: ' + (vHandsFree ? 'on' : 'off');
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && voiceActive) exitVoice();
         });
 
         updateModelUI();
