@@ -541,6 +541,76 @@
         .mode-note { color:var(--accent2); font-size:11px; text-align:center; padding-top:5px; }
         .chat-item[hidden] { display:none; }
 
+        /* ------------------------- bored easter egg ------------------------- */
+        .game-embed {
+            margin-top: 10px;
+            border: 1px solid #2f5a2f;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #111;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35), 0 0 0 1px rgba(124, 255, 124, .08);
+        }
+
+        .game-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 11px;
+            background: var(--panel2);
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: var(--muted);
+            flex-wrap: wrap;
+        }
+
+        .game-title { color: #7cff7c; font-weight: 700; letter-spacing: .2px; }
+        .game-hud { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .game-biome { color: #9ad7ff; }
+        .game-coins { color: #ffd54f; }
+        .game-state { color: var(--dim); }
+
+        .game-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            outline: none;
+            touch-action: manipulation;
+            cursor: pointer;
+            background: #87ceeb;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .game-canvas:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+
+        .game-pad {
+            display: flex;
+            gap: 8px;
+            padding: 9px;
+            background: #151a15;
+            border-top: 1px solid #2f5a2f;
+        }
+
+        .game-btn {
+            border: 1px solid #2f5a2f;
+            background: #182018;
+            color: #cfeccf;
+            border-radius: 9px;
+            padding: 8px 14px;
+            font: inherit;
+            font-size: 13px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .game-btn:hover { background: #21301f; border-color: #2ed84b; color: #fff; }
+        .game-btn.wide { flex: 1; }
+
 /* ---------------------------- voice mode ---------------------------- */
         .composer .mic-btn {
             width: 40px;
@@ -903,6 +973,8 @@
         }
 
         function render() {
+            activeGames.forEach(g => { try { g.destroy(); } catch (e) {} });
+            activeGames = [];
             messagesEl.innerHTML = '';
             if (history.length === 0) {
                 const w = document.createElement('div');
@@ -966,6 +1038,11 @@
                     });
                     bub.appendChild(files);
                 }
+                if (m.embed === 'platformer') {
+                    const gameBox = document.createElement('div');
+                    gameBox.className = 'game-embed';
+                    bub.appendChild(gameBox);
+                }
                 row.appendChild(av); row.appendChild(bub);
                 if (m.role === 'user' || m.role === 'assistant') {
                     const actions=document.createElement('div'); actions.className='msg-actions';
@@ -975,6 +1052,10 @@
                     bub.appendChild(actions);
                 }
                 messagesEl.appendChild(row);
+                if (m.embed === 'platformer') {
+                    const host = row.querySelector('.game-embed');
+                    if (host) activeGames.push(mountPlatformer(host));
+                }
             });
             if (typing) {
                 const row = document.createElement('div');
@@ -1046,6 +1127,437 @@
             return data;
         }
 
+        /* ------------------------- bored easter egg ------------------------- */
+        // Typing "im bored" (or "i'm bored") locally drops a playable mini
+        // platformer into the assistant's bubble instead of calling the model.
+        const GAME_RE = /^\s*i['’]?m\s+bored\s*[!.?]*\s*$/i;
+        let activeGames = [];
+        const GAME_LINE = 'You said the magic words. 🎮 I made you a little something — click it, then use ← → and Space to play.';
+
+        function playBoredEasterEgg(text) {
+            if (!activeChatId && !temporaryMode) createChat();
+            history.push({ role: 'user', content: text, displayContent: text });
+            history.push({ role: 'assistant', content: GAME_LINE, embed: 'platformer' });
+            const active = chats.find(c => c.id === activeChatId);
+            if (active) active.title = chatTitle(history);
+            saveChats();
+            render();
+            return GAME_LINE;
+        }
+
+        function mountPlatformer(host) {
+            const W = 560, H = 270;
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            canvas.className = 'game-canvas';
+            canvas.tabIndex = 0;
+            canvas.setAttribute('aria-label', 'Mini platformer game');
+
+            const bar = document.createElement('div');
+            bar.className = 'game-bar';
+            bar.innerHTML = '<span class="game-title">🎮 mini platformer · snail run</span>' +
+                '<span class="game-hud">' +
+                '<span class="game-biome">🌍 Grassland</span>' +
+                '<span class="game-coins">🪙 0/10</span>' +
+                '<span class="game-state">click to play</span>' +
+                '</span>';
+
+            const pad = document.createElement('div');
+            pad.className = 'game-pad';
+            pad.innerHTML = '<button type="button" class="game-btn" data-k="left" aria-label="Move left">◀</button><button type="button" class="game-btn" data-k="right" aria-label="Move right">▶</button><button type="button" class="game-btn wide" data-k="jump" aria-label="Jump">JUMP</button>';
+
+            host.append(bar, canvas, pad);
+
+            const ctx = canvas.getContext && canvas.getContext('2d');
+            const coinsEl = bar.querySelector('.game-coins');
+            const biomeEl = bar.querySelector('.game-biome');
+            const stateEl = bar.querySelector('.game-state');
+
+            // No canvas support: still show the card rather than throwing.
+            if (!ctx) {
+                stateEl.textContent = 'canvas unsupported';
+                return { destroy() {} };
+            }
+
+            // Chunky pixel look, like the game this is nodding to.
+            ctx.imageSmoothingEnabled = false;
+
+            const GROUND = H - 34;
+            const R = Math.round;
+
+            // --- level: grassland -> sky kingdom -> ice cave -----------------
+            const platforms = [
+                { x: 0, y: GROUND, w: 170, h: 34, type: 'grass' },
+                { x: 250, y: GROUND, w: 150, h: 34, type: 'grass' },
+                { x: 480, y: GROUND, w: 140, h: 34, type: 'grass' },
+                { x: 700, y: GROUND, w: 140, h: 34, type: 'cloud' },
+                { x: 920, y: GROUND, w: 140, h: 34, type: 'cloud' },
+                { x: 1140, y: GROUND, w: 160, h: 34, type: 'ice' },
+                { x: 1380, y: GROUND, w: 140, h: 34, type: 'ice' },
+                { x: 110, y: 180, w: 60, h: 12, type: 'grass' },
+                { x: 300, y: 165, w: 60, h: 12, type: 'grass' },
+                { x: 520, y: 175, w: 60, h: 12, type: 'grass' },
+                { x: 730, y: 170, w: 60, h: 12, type: 'cloud' },
+                { x: 950, y: 160, w: 60, h: 12, type: 'cloud' },
+                { x: 1180, y: 170, w: 60, h: 12, type: 'ice' }
+            ];
+            const coins = [
+                [80, 205], [140, 155], [280, 205], [330, 140], [550, 150],
+                [760, 145], [980, 135], [1210, 145], [1250, 205], [1420, 205]
+            ].map(([x, y]) => ({ x, y, got: false }));
+            const goal = { x: 1440, y: GROUND - 58, w: 30, h: 58 };
+            const WORLD_W = 1520;
+
+            const player = { x: 24, y: GROUND - 26, w: 20, h: 26, vx: 0, vy: 0, onGround: false, dir: 1 };
+
+            let camX = 0, won = false, t = 0, jumpLatch = false;
+            let biome = 'Grassland';
+            const keys = { left: false, right: false, jump: false };
+
+            const SKY = {
+                Grassland: ['#87ceeb', '#cdeeff'],
+                'Sky Kingdom': ['#50b4ff', '#c9efff'],
+                'Ice Cave': ['#1a2a3a', '#0b141c']
+            };
+
+            function biomeAt(x) {
+                if (x < 500) return 'Grassland';
+                if (x < 1060) return 'Sky Kingdom';
+                return 'Ice Cave';
+            }
+
+            function hits(a, b) {
+                return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+            }
+
+            function updateHud() {
+                coinsEl.textContent = '🪙 ' + coins.filter(c => c.got).length + '/' + coins.length;
+            }
+
+            function setBiome(name) {
+                if (name === biome) return;
+                biome = name;
+                biomeEl.textContent = '🌍 ' + name;
+            }
+
+            function respawn() {
+                player.x = 24;
+                player.y = GROUND - 26;
+                player.vx = 0;
+                player.vy = 0;
+                player.dir = 1;
+                won = false;
+                coins.forEach(c => { c.got = false; });
+                setBiome('Grassland');
+                updateHud();
+            }
+
+            function update(dt) {
+                if (won) return;
+
+                const speed = 3.4;
+                if (keys.left) { player.vx = -speed; player.dir = -1; }
+                else if (keys.right) { player.vx = speed; player.dir = 1; }
+                else player.vx *= 0.72;
+
+                player.x += player.vx * dt;
+                for (const p of platforms) {
+                    if (hits(player, p)) {
+                        if (player.vx > 0) player.x = p.x - player.w;
+                        else if (player.vx < 0) player.x = p.x + p.w;
+                        player.vx = 0;
+                    }
+                }
+                if (player.x < 0) player.x = 0;
+                if (player.x + player.w > WORLD_W) player.x = WORLD_W - player.w;
+
+                player.vy += 0.62 * dt;
+                if (player.vy > 14) player.vy = 14;
+                player.y += player.vy * dt;
+                player.onGround = false;
+                for (const p of platforms) {
+                    if (hits(player, p)) {
+                        if (player.vy > 0) { player.y = p.y - player.h; player.vy = 0; player.onGround = true; }
+                        else if (player.vy < 0) { player.y = p.y + p.h; player.vy = 0; }
+                    }
+                }
+
+                if (keys.jump && player.onGround && !jumpLatch) {
+                    player.vy = -9.6;
+                    jumpLatch = true;
+                }
+                if (!keys.jump) jumpLatch = false;
+
+                if (player.y > H + 80) respawn();
+
+                for (const c of coins) {
+                    if (c.got) continue;
+                    const cx = player.x + player.w / 2;
+                    const cy = player.y + player.h / 2;
+                    if (Math.hypot(cx - c.x, cy - c.y) < 22) { c.got = true; updateHud(); }
+                }
+
+                if (hits(player, goal)) {
+                    if (coins.every(c => c.got)) { won = true; stateEl.textContent = 'you win! 🎉'; }
+                    else stateEl.textContent = 'collect all coins first';
+                }
+
+                setBiome(biomeAt(player.x));
+                camX = Math.max(0, Math.min(WORLD_W - W, player.x - W * 0.4));
+            }
+
+            // ---- pixel-art helpers ------------------------------------------
+            function drawPlatform(p) {
+                const x = R(p.x), y = R(p.y), w = R(p.w), h = R(p.h);
+
+                if (p.type === 'cloud') {
+                    ctx.fillStyle = 'rgba(255,255,255,.92)';
+                    ctx.fillRect(x + 4, y, w - 8, h);
+                    for (let cx = x; cx < x + w; cx += 18) {
+                        ctx.beginPath();
+                        ctx.arc(cx + 9, y + 2, 9, Math.PI, 0);
+                        ctx.fill();
+                    }
+                    ctx.fillStyle = 'rgba(174,238,255,.9)';
+                    ctx.fillRect(x + 4, y + h - 3, w - 8, 3);
+                    return;
+                }
+
+                if (p.type === 'ice') {
+                    ctx.fillStyle = '#aeeeff';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.fillStyle = '#dff7ff';
+                    ctx.fillRect(x, y, w, 4);
+                    ctx.fillStyle = 'rgba(255,255,255,.55)';
+                    for (let cx = x + 6; cx < x + w - 6; cx += 26) ctx.fillRect(cx, y + 9, 3, 10);
+                    return;
+                }
+
+                // grass: dirt body, bright green cap
+                ctx.fillStyle = '#6b4a2f';
+                ctx.fillRect(x, y, w, h);
+                ctx.fillStyle = '#4b321f';
+                for (let cx = x + 4; cx < x + w - 4; cx += 16) {
+                    ctx.fillRect(cx, y + 10, 5, 4);
+                    ctx.fillRect(cx + 8, y + 20, 5, 4);
+                }
+                ctx.fillStyle = '#2f8f3a';
+                ctx.fillRect(x, y, w, 8);
+                ctx.fillStyle = '#3a5';
+                ctx.fillRect(x, y, w, 5);
+                ctx.fillStyle = '#7cff7c';
+                ctx.fillRect(x, y, w, 2);
+            }
+
+            function drawCoin(c) {
+                const spin = Math.abs(Math.cos(t / 16 + c.x / 40));
+                const w = Math.max(3, R(10 * spin));
+                const x = R(c.x - w / 2), y = R(c.y - 5);
+                const bob = R(Math.sin(t / 15 + c.x) * 1.5);
+                ctx.fillStyle = '#b8860b';
+                ctx.fillRect(x, y + bob, w, 10);
+                ctx.fillStyle = '#ffd54f';
+                ctx.fillRect(x + 1, y + 1 + bob, Math.max(1, w - 2), 8);
+                if (w > 6) {
+                    ctx.fillStyle = '#fff7b0';
+                    ctx.fillRect(x + 2, y + 2 + bob, 2, 3);
+                }
+            }
+
+            function drawGoal() {
+                const gx = R(goal.x + goal.w / 2);
+                const gy = R(goal.y + goal.h / 2);
+                const ready = coins.every(c => c.got);
+                ctx.save();
+                ctx.globalAlpha = 0.35;
+                ctx.strokeStyle = '#a64dff';
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.arc(gx, gy, 17, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                ctx.strokeStyle = ready ? '#00ff88' : '#a64dff';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(gx, gy, 16, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = ready ? 'rgba(0,255,136,.28)' : 'rgba(166,77,255,.22)';
+                ctx.beginPath();
+                ctx.arc(gx, gy, 12, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function drawPlayer() {
+                const px = R(player.x), py = R(player.y);
+                const step = player.onGround ? R(Math.sin(t / 4) * 1) : 0;
+
+                // feet
+                ctx.fillStyle = '#00ff88';
+                ctx.fillRect(px + 2, py + player.h - 4, 8, 4);
+                ctx.fillRect(px + player.w - 10, py + player.h - 4 - step, 8, 4);
+
+                // body
+                ctx.fillStyle = '#b8ffb8';
+                ctx.fillRect(px + 3, py + 10, player.w - 6, player.h - 12);
+
+                // shell: purple character in a ring (nod to the app icon)
+                ctx.fillStyle = '#a64dff';
+                ctx.fillRect(px + 3, py + 2, 14, 14);
+                ctx.fillStyle = '#7a1fd0';
+                ctx.fillRect(px + 6, py + 5, 8, 8);
+                ctx.fillStyle = '#d9b3ff';
+                ctx.fillRect(px + 8, py + 7, 4, 4);
+
+                // eye
+                const ex = player.dir > 0 ? px + 14 : px + 3;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(ex, py + 10, 4, 4);
+                ctx.fillStyle = '#0b0f18';
+                ctx.fillRect(player.dir > 0 ? ex + 2 : ex, py + 11, 2, 2);
+            }
+
+            function drawClouds(alpha) {
+                ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+                for (let i = 0; i < 6; i++) {
+                    const cx = ((i * 210 - camX * 0.35) % 760) + 20;
+                    const cy = 34 + (i % 3) * 26;
+                    ctx.fillRect(cx, cy, 60, 12);
+                    ctx.fillRect(cx + 10, cy - 8, 40, 10);
+                    ctx.fillRect(cx - 6, cy + 4, 72, 8);
+                }
+            }
+
+            function drawStars() {
+                ctx.fillStyle = 'rgba(255,255,255,.75)';
+                for (let i = 0; i < 42; i++) {
+                    const sx = ((i * 137.5 - camX * 0.2) % W + W) % W;
+                    const sy = (i * 53.7) % 170;
+                    ctx.fillRect(R(sx), R(sy), 2, 2);
+                }
+            }
+
+            function draw() {
+                const sky = SKY[biome] || SKY.Grassland;
+                const grad = ctx.createLinearGradient(0, 0, 0, H);
+                grad.addColorStop(0, sky[0]);
+                grad.addColorStop(1, sky[1]);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
+
+                if (biome === 'Ice Cave') drawStars();
+                else drawClouds(biome === 'Sky Kingdom' ? 0.95 : 0.8);
+
+                // distant hills (grassland only)
+                if (biome === 'Grassland') {
+                    ctx.fillStyle = '#8fe6a0';
+                    for (let i = 0; i < 5; i++) {
+                        const hx = ((i * 180 - camX * 0.5) % 720 + 720) % 720;
+                        ctx.beginPath();
+                        ctx.arc(hx, GROUND + 10, 62, Math.PI, 0);
+                        ctx.fill();
+                    }
+                }
+
+                ctx.save();
+                ctx.translate(-R(camX), 0);
+
+                for (const p of platforms) drawPlatform(p);
+                for (const c of coins) if (!c.got) drawCoin(c);
+                drawGoal();
+                drawPlayer();
+
+                ctx.restore();
+
+                if (won) {
+                    ctx.fillStyle = 'rgba(8,11,18,.72)';
+                    ctx.fillRect(0, 0, W, H);
+                    ctx.fillStyle = '#7cff7c';
+                    ctx.font = '700 22px ui-monospace, SFMono-Regular, Menlo, monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('YOU MADE IT! 🎉', W / 2, H / 2 - 6);
+                    ctx.font = '13px ui-monospace, SFMono-Regular, Menlo, monospace';
+                    ctx.fillStyle = '#cfeccf';
+                    ctx.fillText('all coins collected — press Replay', W / 2, H / 2 + 20);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            function keyName(e) {
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') return 'left';
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') return 'right';
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') return 'jump';
+                return null;
+            }
+            function onKeyDown(e) {
+                if (document.activeElement !== canvas) return;
+                const k = keyName(e);
+                if (!k) return;
+                e.preventDefault();
+                keys[k] = true;
+            }
+            function onKeyUp(e) {
+                const k = keyName(e);
+                if (!k) return;
+                if (document.activeElement === canvas) e.preventDefault();
+                keys[k] = false;
+                if (k === 'jump') jumpLatch = false;
+            }
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+
+            canvas.addEventListener('pointerdown', () => {
+                canvas.focus();
+                stateEl.textContent = 'playing';
+            });
+
+            pad.querySelectorAll('.game-btn[data-k]').forEach(btn => {
+                const k = btn.dataset.k;
+                const down = e => { e.preventDefault(); keys[k] = true; canvas.focus(); stateEl.textContent = 'playing'; };
+                const up = e => { e.preventDefault(); keys[k] = false; if (k === 'jump') jumpLatch = false; };
+                btn.addEventListener('pointerdown', down);
+                btn.addEventListener('pointerup', up);
+                btn.addEventListener('pointerleave', up);
+                btn.addEventListener('pointercancel', up);
+            });
+
+            const replay = document.createElement('button');
+            replay.type = 'button';
+            replay.className = 'game-btn wide';
+            replay.textContent = '↻ Replay';
+            replay.addEventListener('click', () => { respawn(); stateEl.textContent = 'playing'; });
+            pad.appendChild(replay);
+
+            let raf = 0, last = 0;
+            function frame(ts) {
+                raf = requestAnimationFrame(frame);
+                if (!last) last = ts;
+                const dt = Math.min(2.4, (ts - last) / 16.667);
+                last = ts;
+                t += dt;
+                update(dt);
+                draw();
+            }
+
+            updateHud();
+            draw();
+            raf = requestAnimationFrame(frame);
+
+            const handle = {
+                destroy() {
+                    cancelAnimationFrame(raf);
+                    window.removeEventListener('keydown', onKeyDown);
+                    window.removeEventListener('keyup', onKeyUp);
+                },
+                // Exposed for automated tests; not used by the UI.
+                _debug: { player, coins, goal, keys, update, draw, updateHud, platforms, get biome() { return biome; } }
+            };
+            host.__game = handle;
+            return handle;
+        }
+
         // Core send routine — shared by the text box and voice mode.
         // Returns the assistant reply (or null on failure).
         async function sendText(rawText) {
@@ -1053,6 +1565,10 @@
             if ((!text && !pendingFiles.length) || typing) return null;
 
             if (!activeChatId && !temporaryMode) createChat();
+
+            // Easter egg: answer locally with a playable game, no API call.
+            if (!pendingFiles.length && GAME_RE.test(text)) return playBoredEasterEgg(text);
+
             const fileContext = pendingFiles.map(f => f.kind === 'image'
                 ? `\n\n[The user attached an image named ${f.name}. The image is displayed in the conversation, but this chat server currently accepts text-only message content.]`
                 : `\n\n[Attached file: ${f.name}]\n${f.content}`).join('');
