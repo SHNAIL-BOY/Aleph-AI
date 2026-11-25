@@ -419,6 +419,48 @@
             color: var(--muted);
         }
 
+        .thinking-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            padding: 5px 0;
+        }
+
+        .thinking-dots {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .thinking-dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent2);
+            animation: thinking-bounce 1.15s ease-in-out infinite;
+        }
+
+        .thinking-dots span:nth-child(2) {
+            animation-delay: .15s;
+        }
+
+        .thinking-dots span:nth-child(3) {
+            animation-delay: .3s;
+        }
+
+        @keyframes thinking-bounce {
+            0%, 60%, 100% { opacity: .35; transform: translateY(0); }
+            30% { opacity: 1; transform: translateY(-4px); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .thinking-dots span {
+                animation: none;
+                opacity: .75;
+            }
+        }
+
         .err {
             color: #ffb4b4;
         }
@@ -744,7 +786,7 @@
             if (typing) {
                 const row = document.createElement('div');
                 row.className = 'msg';
-                row.innerHTML = '<div class="avatar">ℵ₀</div><div class="bubble typing">Thinking…</div>';
+                row.innerHTML = '<div class="avatar">ℵ₀</div><div class="bubble typing"><span class="thinking-indicator" role="status" aria-label="Aleph is thinking"><span>Thinking</span><span class="thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span></span></div>';
                 messagesEl.appendChild(row);
             }
             messagesEl.scrollTop = messagesEl.scrollHeight;
