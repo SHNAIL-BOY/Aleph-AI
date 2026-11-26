@@ -1156,7 +1156,7 @@
 
             const bar = document.createElement('div');
             bar.className = 'game-bar';
-            bar.innerHTML = '<span class="game-title">🎮 mini platformer · snail run</span>' +
+            bar.innerHTML = '<span class="game-title">🎮 mini platformer · aleph run</span>' +
                 '<span class="game-hud">' +
                 '<span class="game-biome">🌍 Grassland</span>' +
                 '<span class="game-coins">🪙 0/10</span>' +
@@ -1174,17 +1174,17 @@
             const biomeEl = bar.querySelector('.game-biome');
             const stateEl = bar.querySelector('.game-state');
 
-            // No canvas support: still show the card rather than throwing.
             if (!ctx) {
                 stateEl.textContent = 'canvas unsupported';
                 return { destroy() {} };
             }
 
-            // Chunky pixel look, like the game this is nodding to.
             ctx.imageSmoothingEnabled = false;
 
-            const GROUND = H - 34;
             const R = Math.round;
+            const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+            const GROUND = H - 34;
 
             // --- level: grassland -> sky kingdom -> ice cave -----------------
             const platforms = [
@@ -1211,14 +1211,28 @@
 
             const player = { x: 24, y: GROUND - 26, w: 20, h: 26, vx: 0, vy: 0, onGround: false, dir: 1 };
 
-            let camX = 0, won = false, t = 0, jumpLatch = false;
+            // --- tuning ------------------------------------------------------
+            const MAX_VX = 4.0;
+            const ACC_GROUND = 0.5;
+            const ACC_AIR = 0.32;
+            const FRIC_GROUND = 0.72;
+            const FRIC_AIR = 0.93;
+            const GRAV = 0.62;
+            const MAX_FALL = 13.5;
+            const JUMP_V = -9.8;
+            const COYOTE = 8;       // frames of grace after leaving a ledge
+            const JUMP_BUFFER = 9;  // frames a jump press is remembered
+
+            let camX = 0, camY = 0, won = false, t = 0;
             let biome = 'Grassland';
+            let coyote = 0, jumpBuffer = 0, prevJump = false, wasOnGround = false;
             const keys = { left: false, right: false, jump: false };
+            const parts = [];
 
             const SKY = {
-                Grassland: ['#87ceeb', '#cdeeff'],
-                'Sky Kingdom': ['#50b4ff', '#c9efff'],
-                'Ice Cave': ['#1a2a3a', '#0b141c']
+                Grassland: ['#bfe9ff', '#87ceeb', '#eaf7cf'],
+                'Sky Kingdom': ['#3f9fe8', '#78c9ff', '#d8f3ff'],
+                'Ice Cave': ['#16283a', '#0e1a26', '#070d14']
             };
 
             function biomeAt(x) {
@@ -1241,6 +1255,18 @@
                 biomeEl.textContent = '🌍 ' + name;
             }
 
+            function puff(x, y, n, color, spread) {
+                for (let i = 0; i < n; i++) {
+                    parts.push({
+                        x, y,
+                        vx: (Math.random() - 0.5) * (spread || 2.2),
+                        vy: -Math.random() * 1.5 - 0.2,
+                        life: 1,
+                        color
+                    });
+                }
+            }
+
             function respawn() {
                 player.x = 24;
                 player.y = GROUND - 26;
@@ -1248,18 +1274,28 @@
                 player.vy = 0;
                 player.dir = 1;
                 won = false;
+                coyote = 0;
+                jumpBuffer = 0;
+                parts.length = 0;
                 coins.forEach(c => { c.got = false; });
                 setBiome('Grassland');
                 updateHud();
             }
 
+            // ------------------------------ physics -------------------------
             function update(dt) {
                 if (won) return;
 
-                const speed = 3.4;
-                if (keys.left) { player.vx = -speed; player.dir = -1; }
-                else if (keys.right) { player.vx = speed; player.dir = 1; }
-                else player.vx *= 0.72;
+                // horizontal: accelerate toward a target speed, glide to a stop
+                const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+                if (dir) {
+                    player.vx += dir * (player.onGround ? ACC_GROUND : ACC_AIR) * dt;
+                    player.dir = dir;
+                } else {
+                    player.vx *= Math.pow(player.onGround ? FRIC_GROUND : FRIC_AIR, dt);
+                    if (Math.abs(player.vx) < 0.05) player.vx = 0;
+                }
+                player.vx = clamp(player.vx, -MAX_VX, MAX_VX);
 
                 player.x += player.vx * dt;
                 for (const p of platforms) {
@@ -1272,8 +1308,8 @@
                 if (player.x < 0) player.x = 0;
                 if (player.x + player.w > WORLD_W) player.x = WORLD_W - player.w;
 
-                player.vy += 0.62 * dt;
-                if (player.vy > 14) player.vy = 14;
+                // vertical
+                player.vy = clamp(player.vy + GRAV * dt, -30, MAX_FALL);
                 player.y += player.vy * dt;
                 player.onGround = false;
                 for (const p of platforms) {
@@ -1283,19 +1319,44 @@
                     }
                 }
 
-                if (keys.jump && player.onGround && !jumpLatch) {
-                    player.vy = -9.6;
-                    jumpLatch = true;
+                // coyote time + jump buffering: forgiving, feels smooth
+                if (player.onGround) coyote = COYOTE;
+                else coyote = Math.max(0, coyote - dt);
+
+                const pressed = keys.jump && !prevJump;
+                const released = !keys.jump && prevJump;
+                prevJump = keys.jump;
+
+                if (pressed) jumpBuffer = JUMP_BUFFER;
+                else jumpBuffer = Math.max(0, jumpBuffer - dt);
+
+                if (jumpBuffer > 0 && coyote > 0) {
+                    player.vy = JUMP_V;
+                    jumpBuffer = 0;
+                    coyote = 0;
+                    puff(player.x + player.w / 2, player.y + player.h, 5, 'rgba(200,255,220,.9)', 2.4);
                 }
-                if (!keys.jump) jumpLatch = false;
+                // variable jump height: letting go early cuts the arc
+                if (released && player.vy < -2) player.vy *= 0.86;
 
-                if (player.y > H + 80) respawn();
+                if (player.y > H + 90) respawn();
 
+                // landing puff
+                if (player.onGround && !wasOnGround) {
+                    puff(player.x + player.w / 2, player.y + player.h, 6, 'rgba(210,255,225,.85)', 3);
+                }
+                wasOnGround = player.onGround;
+
+                // coins
                 for (const c of coins) {
                     if (c.got) continue;
                     const cx = player.x + player.w / 2;
                     const cy = player.y + player.h / 2;
-                    if (Math.hypot(cx - c.x, cy - c.y) < 22) { c.got = true; updateHud(); }
+                    if (Math.hypot(cx - c.x, cy - c.y) < 22) {
+                        c.got = true;
+                        puff(c.x, c.y, 6, 'rgba(255,215,90,.95)', 2.6);
+                        updateHud();
+                    }
                 }
 
                 if (hits(player, goal)) {
@@ -1303,65 +1364,301 @@
                     else stateEl.textContent = 'collect all coins first';
                 }
 
+                // particles
+                for (let i = parts.length - 1; i >= 0; i--) {
+                    const p = parts[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.vy += 0.05 * dt;
+                    p.life -= 0.035 * dt;
+                    if (p.life <= 0) parts.splice(i, 1);
+                }
+
                 setBiome(biomeAt(player.x));
-                camX = Math.max(0, Math.min(WORLD_W - W, player.x - W * 0.4));
+                updateCamera(dt);
             }
 
-            // ---- pixel-art helpers ------------------------------------------
+            // ------------------------------ camera --------------------------
+            function updateCamera(dt) {
+                // look a little ahead of where the player is heading
+                const look = player.dir * 42 + player.vx * 9;
+                let tx = player.x + player.w / 2 - W * 0.45 + look;
+                tx = clamp(tx, 0, WORLD_W - W);
+                camX += (tx - camX) * (1 - Math.pow(0.86, dt));
+
+                let ty = clamp((player.y + player.h / 2) - H * 0.62, -16, 14);
+                camY += (ty - camY) * (1 - Math.pow(0.9, dt));
+            }
+
+            // ------------------------------ scenery -------------------------
+            function drawSky() {
+                const c = SKY[biome] || SKY.Grassland;
+                const g = ctx.createLinearGradient(0, 0, 0, H);
+                g.addColorStop(0, c[0]);
+                g.addColorStop(0.62, c[1]);
+                g.addColorStop(1, c[2]);
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, W, H);
+            }
+
+            function drawSun(x, y, r, core, glow) {
+                const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+                g.addColorStop(0, glow);
+                g.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
+                ctx.fillStyle = core;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function mountainRow(color, parallax, baseY, height, step, snow) {
+                const off = (camX * parallax) % step;
+                for (let i = -1; i * step - off < W + step; i++) {
+                    const x = i * step - off;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.moveTo(x, baseY);
+                    ctx.lineTo(x + step / 2, baseY - height);
+                    ctx.lineTo(x + step, baseY);
+                    ctx.closePath();
+                    ctx.fill();
+                    if (snow) {
+                        ctx.fillStyle = snow;
+                        ctx.beginPath();
+                        ctx.moveTo(x + step / 2, baseY - height);
+                        ctx.lineTo(x + step / 2 - 10, baseY - height + 14);
+                        ctx.lineTo(x + step / 2 + 10, baseY - height + 14);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
+
+            function drawCloud(cx, cy, s, alpha) {
+                ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 11 * s, 0, Math.PI * 2);
+                ctx.arc(cx + 13 * s, cy - 6 * s, 15 * s, 0, Math.PI * 2);
+                ctx.arc(cx + 30 * s, cy, 11 * s, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(cx - 11 * s, cy, 42 * s, 11 * s);
+            }
+
+            function cloudRow(parallax, count, baseY, s, alpha, drift) {
+                const off = ((camX * parallax + t * (drift || 0)) % 900 + 900) % 900;
+                for (let i = 0; i < count; i++) {
+                    const cx = ((i * 170) - off % 900 + 900) % 900 - 90;
+                    const cy = baseY + ((i * 37) % 46) - 20;
+                    drawCloud(cx, cy, s * (0.8 + ((i * 13) % 5) / 10), alpha);
+                }
+            }
+
+            function drawIslands(parallax, baseY, alpha) {
+                const off = (camX * parallax) % 320;
+                for (let i = -1; i * 320 - off < W + 320; i++) {
+                    const x = i * 320 - off;
+                    const y = baseY + (i % 2 === 0 ? 0 : 26);
+                    ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+                    ctx.beginPath();
+                    ctx.ellipse(x + 60, y, 46, 12, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(120,200,255,' + (alpha * 0.8) + ')';
+                    ctx.beginPath();
+                    ctx.moveTo(x + 20, y + 4);
+                    ctx.lineTo(x + 100, y + 4);
+                    ctx.lineTo(x + 82, y + 34);
+                    ctx.lineTo(x + 40, y + 30);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            function drawAurora() {
+                const cols = ['0,255,136', '166,77,255', '80,180,255', '0,255,136'];
+                for (let b = 0; b < 4; b++) {
+                    const baseY = 28 + b * 19;
+                    ctx.beginPath();
+                    for (let x = 0; x <= W; x += 6) {
+                        const y = baseY + Math.sin(x / 78 + t / 55 + b * 1.4) * 14;
+                        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    }
+                    for (let x = W; x >= 0; x -= 6) {
+                        const y = baseY + 36 + Math.sin(x / 66 + t / 62 + b * 1.4) * 7;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    const g = ctx.createLinearGradient(0, baseY - 12, 0, baseY + 40);
+                    g.addColorStop(0, 'rgba(' + cols[b] + ',0.17)');
+                    g.addColorStop(0.5, 'rgba(' + cols[b] + ',0.06)');
+                    g.addColorStop(1, 'rgba(' + cols[b] + ',0)');
+                    ctx.fillStyle = g;
+                    ctx.fill();
+                }
+                // horizon glow
+                const hg = ctx.createLinearGradient(0, 120, 0, H);
+                hg.addColorStop(0, 'rgba(0,255,136,0)');
+                hg.addColorStop(1, 'rgba(0,255,136,.07)');
+                ctx.fillStyle = hg;
+                ctx.fillRect(0, 120, W, H - 120);
+            }
+
+            function drawSnow() {
+                ctx.fillStyle = 'rgba(255,255,255,.8)';
+                for (let i = 0; i < 55; i++) {
+                    const x = ((i * 97 + t * (0.4 + (i % 3) * 0.15)) % (W + 20)) - 10;
+                    const y = (i * 53 + t * (0.9 + (i % 4) * 0.2)) % H;
+                    ctx.fillRect(R(x), R(y), i % 5 === 0 ? 3 : 2, i % 5 === 0 ? 3 : 2);
+                }
+            }
+
+            function drawBackground() {
+                drawSky();
+
+                if (biome === 'Grassland') {
+                    drawSun(W - 86, 52, 20, '#fff8c0', 'rgba(255,248,150,.45)');
+                    cloudRow(0.18, 6, 60, 1.0, 0.55, 0.05);
+                    mountainRow('#b8dcc8', 0.12, GROUND + 6, 86, 150, '#f2fbff');
+                    mountainRow('#8fc9a8', 0.26, GROUND + 8, 64, 130, null);
+                    cloudRow(0.42, 5, 108, 1.15, 0.75, 0.09);
+                    // rolling near hills
+                    ctx.fillStyle = '#79c98a';
+                    for (let i = 0; i < 6; i++) {
+                        const hx = ((i * 150 - camX * 0.6) % 900 + 900) % 900 - 120;
+                        ctx.beginPath();
+                        ctx.arc(hx, GROUND + 26, 50, Math.PI, 0);
+                        ctx.fill();
+                    }
+                } else if (biome === 'Sky Kingdom') {
+                    drawSun(92, 46, 18, '#ffffff', 'rgba(255,255,255,.6)');
+                    cloudRow(0.12, 7, 48, 1.3, 0.5, 0.04);
+                    drawIslands(0.22, 96, 0.5);
+                    cloudRow(0.4, 6, 120, 1.5, 0.58, 0.08);
+                    cloudRow(0.62, 4, 170, 1.8, 0.66, 0.12);
+                } else {
+                    drawAurora();
+                    drawSun(W - 96, 44, 14, '#dff7ff', 'rgba(150,220,255,.28)');
+                    // stars
+                    ctx.fillStyle = 'rgba(255,255,255,.85)';
+                    for (let i = 0; i < 40; i++) {
+                        const sx = ((i * 137.5 - camX * 0.12) % W + W) % W;
+                        const sy = (i * 53.7) % 150;
+                        const tw = 0.55 + 0.45 * Math.sin(t / 20 + i);
+                        ctx.globalAlpha = tw;
+                        ctx.fillRect(R(sx), R(sy), 2, 2);
+                    }
+                    ctx.globalAlpha = 1;
+                    // ice spires
+                    mountainRow('#1d3145', 0.2, GROUND + 6, 78, 110, '#2e4a63');
+                    drawSnow();
+                }
+
+                // vignette
+                const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 1.02);
+                vg.addColorStop(0, 'rgba(0,0,0,0)');
+                vg.addColorStop(1, 'rgba(0,0,0,.32)');
+                ctx.fillStyle = vg;
+                ctx.fillRect(0, 0, W, H);
+            }
+
+            // ------------------------------ world art -----------------------
+            function roundRectPath(x, y, w, h, r) {
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') { ctx.roundRect(x, y, w, h, r); return; }
+                ctx.moveTo(x + r, y);
+                ctx.arcTo(x + w, y, x + w, y + h, r);
+                ctx.arcTo(x + w, y + h, x, y + h, r);
+                ctx.arcTo(x, y + h, x, y, r);
+                ctx.arcTo(x, y, x + w, y, r);
+                ctx.closePath();
+            }
+
             function drawPlatform(p) {
                 const x = R(p.x), y = R(p.y), w = R(p.w), h = R(p.h);
 
                 if (p.type === 'cloud') {
-                    ctx.fillStyle = 'rgba(255,255,255,.92)';
-                    ctx.fillRect(x + 4, y, w - 8, h);
-                    for (let cx = x; cx < x + w; cx += 18) {
+                    // bright solid top so it reads as a platform, not scenery
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+                    for (let cx = x + 9; cx < x + w; cx += 20) {
                         ctx.beginPath();
-                        ctx.arc(cx + 9, y + 2, 9, Math.PI, 0);
+                        ctx.arc(cx, y + 3, 10, Math.PI, 0);
                         ctx.fill();
                     }
-                    ctx.fillStyle = 'rgba(174,238,255,.9)';
-                    ctx.fillRect(x + 4, y + h - 3, w - 8, 3);
+                    // under-shadow + rim keep it separated from the sky
+                    ctx.fillStyle = 'rgba(64,132,190,.42)';
+                    ctx.fillRect(x + 2, y + h - 5, w - 4, 4);
+                    ctx.strokeStyle = 'rgba(56,120,175,.55)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 2, y + h - 1);
+                    ctx.lineTo(x + w - 2, y + h - 1);
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(174,238,255,.95)';
+                    ctx.fillRect(x + 4, y + h - 8, w - 8, 2);
                     return;
                 }
 
                 if (p.type === 'ice') {
-                    ctx.fillStyle = '#aeeeff';
+                    ctx.fillStyle = '#8fdcff';
                     ctx.fillRect(x, y, w, h);
-                    ctx.fillStyle = '#dff7ff';
-                    ctx.fillRect(x, y, w, 4);
-                    ctx.fillStyle = 'rgba(255,255,255,.55)';
-                    for (let cx = x + 6; cx < x + w - 6; cx += 26) ctx.fillRect(cx, y + 9, 3, 10);
+                    ctx.fillStyle = '#c8f0ff';
+                    ctx.fillRect(x, y, w, 5);
+                    ctx.fillStyle = '#e8fbff';
+                    ctx.fillRect(x, y, w, 2);
+                    // frost facets
+                    ctx.fillStyle = 'rgba(255,255,255,.72)';
+                    for (let cx = x + 6; cx < x + w - 8; cx += 22) {
+                        ctx.fillRect(cx, y + 9, 3, 8);
+                        ctx.fillRect(cx + 3, y + 17, 2, 5);
+                    }
+                    ctx.fillStyle = 'rgba(74,150,196,.6)';
+                    ctx.fillRect(x, y + h - 4, w, 4);
+                    ctx.fillStyle = 'rgba(255,255,255,.4)';
+                    ctx.fillRect(x, y + h - 6, w, 2);
                     return;
                 }
 
-                // grass: dirt body, bright green cap
+                // grass: dirt body with a bright green cap
                 ctx.fillStyle = '#6b4a2f';
                 ctx.fillRect(x, y, w, h);
-                ctx.fillStyle = '#4b321f';
-                for (let cx = x + 4; cx < x + w - 4; cx += 16) {
-                    ctx.fillRect(cx, y + 10, 5, 4);
-                    ctx.fillRect(cx + 8, y + 20, 5, 4);
+                ctx.fillStyle = '#573a24';
+                for (let cx = x + 5; cx < x + w - 6; cx += 17) {
+                    ctx.fillRect(cx, y + 11, 6, 4);
+                    ctx.fillRect(cx + 9, y + 21, 6, 4);
                 }
                 ctx.fillStyle = '#2f8f3a';
-                ctx.fillRect(x, y, w, 8);
+                ctx.fillRect(x, y, w, 9);
                 ctx.fillStyle = '#3a5';
-                ctx.fillRect(x, y, w, 5);
+                ctx.fillRect(x, y, w, 6);
                 ctx.fillStyle = '#7cff7c';
                 ctx.fillRect(x, y, w, 2);
+                // grass blades
+                ctx.fillStyle = '#8dff8d';
+                for (let cx = x + 4; cx < x + w - 3; cx += 12) {
+                    ctx.fillRect(cx, y - 2, 2, 3);
+                }
             }
 
             function drawCoin(c) {
                 const spin = Math.abs(Math.cos(t / 16 + c.x / 40));
-                const w = Math.max(3, R(10 * spin));
-                const x = R(c.x - w / 2), y = R(c.y - 5);
+                const w = Math.max(5, R(10 * spin));
                 const bob = R(Math.sin(t / 15 + c.x) * 1.5);
+                const x = R(c.x - w / 2), y = R(c.y - 5) + bob;
+
+                ctx.fillStyle = 'rgba(255,215,80,.18)';
+                ctx.beginPath();
+                ctx.arc(c.x, c.y + bob, 11, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.fillStyle = '#b8860b';
-                ctx.fillRect(x, y + bob, w, 10);
+                ctx.fillRect(x, y, w, 10);
                 ctx.fillStyle = '#ffd54f';
-                ctx.fillRect(x + 1, y + 1 + bob, Math.max(1, w - 2), 8);
+                ctx.fillRect(x + 1, y + 1, Math.max(1, w - 2), 8);
                 if (w > 6) {
                     ctx.fillStyle = '#fff7b0';
-                    ctx.fillRect(x + 2, y + 2 + bob, 2, 3);
+                    ctx.fillRect(x + 2, y + 2, 2, 3);
                 }
             }
 
@@ -1369,104 +1666,145 @@
                 const gx = R(goal.x + goal.w / 2);
                 const gy = R(goal.y + goal.h / 2);
                 const ready = coins.every(c => c.got);
+
                 ctx.save();
-                ctx.globalAlpha = 0.35;
-                ctx.strokeStyle = '#a64dff';
-                ctx.lineWidth = 10;
+                ctx.globalAlpha = 0.3 + 0.12 * Math.sin(t / 14);
+                ctx.strokeStyle = ready ? '#00ff88' : '#a64dff';
+                ctx.lineWidth = 12;
                 ctx.beginPath();
-                ctx.arc(gx, gy, 17, 0, Math.PI * 2);
+                ctx.arc(gx, gy, 18, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.restore();
 
                 ctx.strokeStyle = ready ? '#00ff88' : '#a64dff';
-                ctx.lineWidth = 5;
+                ctx.lineWidth = 4;
                 ctx.beginPath();
                 ctx.arc(gx, gy, 16, 0, Math.PI * 2);
                 ctx.stroke();
 
-                ctx.fillStyle = ready ? 'rgba(0,255,136,.28)' : 'rgba(166,77,255,.22)';
+                ctx.fillStyle = ready ? 'rgba(0,255,136,.25)' : 'rgba(166,77,255,.2)';
                 ctx.beginPath();
-                ctx.arc(gx, gy, 12, 0, Math.PI * 2);
+                ctx.arc(gx, gy, 11, 0, Math.PI * 2);
                 ctx.fill();
             }
 
+            // ------------------------------ character -----------------------
+            // "Aleph drone": mint capsule, dark visor, orbiting ring (ℵ₀ motif).
             function drawPlayer() {
-                const px = R(player.x), py = R(player.y);
-                const step = player.onGround ? R(Math.sin(t / 4) * 1) : 0;
+                const cx = player.x + player.w / 2;
+                const cy = player.y + player.h / 2;
 
-                // feet
-                ctx.fillStyle = '#00ff88';
-                ctx.fillRect(px + 2, py + player.h - 4, 8, 4);
-                ctx.fillRect(px + player.w - 10, py + player.h - 4 - step, 8, 4);
+                // ground shadow
+                if (player.onGround) {
+                    ctx.fillStyle = 'rgba(0,0,0,.18)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, player.y + player.h + 3, 10, 3.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                // body
-                ctx.fillStyle = '#b8ffb8';
-                ctx.fillRect(px + 3, py + 10, player.w - 6, player.h - 12);
+                const st = clamp(1 + Math.abs(player.vy) * 0.010, 1, 1.14);
+                const sx = 1 / Math.sqrt(st);
 
-                // shell: purple character in a ring (nod to the app icon)
-                ctx.fillStyle = '#a64dff';
-                ctx.fillRect(px + 3, py + 2, 14, 14);
-                ctx.fillStyle = '#7a1fd0';
-                ctx.fillRect(px + 6, py + 5, 8, 8);
-                ctx.fillStyle = '#d9b3ff';
-                ctx.fillRect(px + 8, py + 7, 4, 4);
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(sx, st);
 
-                // eye
-                const ex = player.dir > 0 ? px + 14 : px + 3;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(ex, py + 10, 4, 4);
-                ctx.fillStyle = '#0b0f18';
-                ctx.fillRect(player.dir > 0 ? ex + 2 : ex, py + 11, 2, 2);
+                // thruster when airborne
+                if (!player.onGround) {
+                    const f = 7 + (t % 4);
+                    ctx.fillStyle = 'rgba(0,255,136,.30)';
+                    ctx.beginPath();
+                    ctx.moveTo(-6, 11);
+                    ctx.lineTo(6, 11);
+                    ctx.lineTo(0, 13 + f);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(200,255,225,.95)';
+                    ctx.beginPath();
+                    ctx.moveTo(-3, 11);
+                    ctx.lineTo(3, 11);
+                    ctx.lineTo(0, 11 + f * 0.6);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // soft aura
+                const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 23);
+                glow.addColorStop(0, 'rgba(124,255,124,.26)');
+                glow.addColorStop(1, 'rgba(124,255,124,0)');
+                ctx.fillStyle = glow;
+                ctx.fillRect(-24, -24, 48, 48);
+
+                // orbiting ring (ℵ₀ motif)
+                ctx.save();
+                ctx.rotate(Math.sin(t / 45) * 0.55);
+                ctx.strokeStyle = 'rgba(166,77,255,.95)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 18, 7.5, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+
+                // body: mint capsule with a dark rim so it survives bright skies
+                const bg = ctx.createLinearGradient(0, -11, 0, 11);
+                bg.addColorStop(0, '#eafff2');
+                bg.addColorStop(0.55, '#7cf0ae');
+                bg.addColorStop(1, '#28b877');
+                ctx.fillStyle = bg;
+                roundRectPath(-11, -10, 22, 20, 9);
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(8,40,24,.45)';
+                roundRectPath(-11, -10, 22, 20, 9);
+                ctx.stroke();
+
+                // visor, offset toward facing
+                const vx = player.dir > 0 ? -6 : -8;
+                ctx.fillStyle = '#08140f';
+                roundRectPath(vx, -6, 14, 10, 5);
+                ctx.fill();
+
+                // eyes (occasional blink)
+                const open = Math.sin(t / 70) > 0.97 ? 0.25 : 1;
+                const ex = player.dir > 0 ? vx + 3 : vx + 8;
+                ctx.fillStyle = '#9dffb8';
+                ctx.fillRect(ex, -3, 3, Math.max(1, 5 * open));
+                ctx.fillRect(ex + 5, -3, 3, Math.max(1, 5 * open));
+
+                // antenna
+                ctx.strokeStyle = '#2fae6e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, -16);
+                ctx.stroke();
+                ctx.fillStyle = Math.sin(t / 18) > 0 ? '#b6ffcb' : '#39d98a';
+                ctx.beginPath();
+                ctx.arc(0, -17.5, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             }
 
-            function drawClouds(alpha) {
-                ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
-                for (let i = 0; i < 6; i++) {
-                    const cx = ((i * 210 - camX * 0.35) % 760) + 20;
-                    const cy = 34 + (i % 3) * 26;
-                    ctx.fillRect(cx, cy, 60, 12);
-                    ctx.fillRect(cx + 10, cy - 8, 40, 10);
-                    ctx.fillRect(cx - 6, cy + 4, 72, 8);
+            function drawParticles() {
+                for (const p of parts) {
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(R(p.x), R(p.y), 3, 3);
                 }
-            }
-
-            function drawStars() {
-                ctx.fillStyle = 'rgba(255,255,255,.75)';
-                for (let i = 0; i < 42; i++) {
-                    const sx = ((i * 137.5 - camX * 0.2) % W + W) % W;
-                    const sy = (i * 53.7) % 170;
-                    ctx.fillRect(R(sx), R(sy), 2, 2);
-                }
+                ctx.globalAlpha = 1;
             }
 
             function draw() {
-                const sky = SKY[biome] || SKY.Grassland;
-                const grad = ctx.createLinearGradient(0, 0, 0, H);
-                grad.addColorStop(0, sky[0]);
-                grad.addColorStop(1, sky[1]);
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, W, H);
-
-                if (biome === 'Ice Cave') drawStars();
-                else drawClouds(biome === 'Sky Kingdom' ? 0.95 : 0.8);
-
-                // distant hills (grassland only)
-                if (biome === 'Grassland') {
-                    ctx.fillStyle = '#8fe6a0';
-                    for (let i = 0; i < 5; i++) {
-                        const hx = ((i * 180 - camX * 0.5) % 720 + 720) % 720;
-                        ctx.beginPath();
-                        ctx.arc(hx, GROUND + 10, 62, Math.PI, 0);
-                        ctx.fill();
-                    }
-                }
+                drawBackground();
 
                 ctx.save();
-                ctx.translate(-R(camX), 0);
+                ctx.translate(-R(camX), -R(camY));
 
                 for (const p of platforms) drawPlatform(p);
                 for (const c of coins) if (!c.got) drawCoin(c);
                 drawGoal();
+                drawParticles();
                 drawPlayer();
 
                 ctx.restore();
@@ -1503,7 +1841,6 @@
                 if (!k) return;
                 if (document.activeElement === canvas) e.preventDefault();
                 keys[k] = false;
-                if (k === 'jump') jumpLatch = false;
             }
             window.addEventListener('keydown', onKeyDown);
             window.addEventListener('keyup', onKeyUp);
@@ -1516,7 +1853,7 @@
             pad.querySelectorAll('.game-btn[data-k]').forEach(btn => {
                 const k = btn.dataset.k;
                 const down = e => { e.preventDefault(); keys[k] = true; canvas.focus(); stateEl.textContent = 'playing'; };
-                const up = e => { e.preventDefault(); keys[k] = false; if (k === 'jump') jumpLatch = false; };
+                const up = e => { e.preventDefault(); keys[k] = false; };
                 btn.addEventListener('pointerdown', down);
                 btn.addEventListener('pointerup', up);
                 btn.addEventListener('pointerleave', up);
@@ -1527,7 +1864,12 @@
             replay.type = 'button';
             replay.className = 'game-btn wide';
             replay.textContent = '↻ Replay';
-            replay.addEventListener('click', () => { respawn(); stateEl.textContent = 'playing'; });
+            replay.addEventListener('click', () => {
+                respawn();
+                camX = 0;
+                camY = 0;
+                stateEl.textContent = 'playing';
+            });
             pad.appendChild(replay);
 
             let raf = 0, last = 0;
@@ -1552,7 +1894,12 @@
                     window.removeEventListener('keyup', onKeyUp);
                 },
                 // Exposed for automated tests; not used by the UI.
-                _debug: { player, coins, goal, keys, update, draw, updateHud, platforms, get biome() { return biome; } }
+                _debug: {
+                    player, coins, goal, keys, update, draw, updateHud, platforms,
+                    get biome() { return biome; },
+                    get camX() { return camX; },
+                    get camY() { return camY; }
+                }
             };
             host.__game = handle;
             return handle;
